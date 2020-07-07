@@ -19,3 +19,6 @@ jobs:
         run: yarn
       - name: compile
         run: yarn compile
+        env:
+          INFURA_PROJECT_ID: ${{ secrets.INFURA_PROJECT_ID }}
+          DEV_MNEMONIC: ${{ secrets.DEV_MNEMONIC }}    
