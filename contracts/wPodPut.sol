@@ -17,8 +17,7 @@ contract wPodPut is PodPut {
         address _strikeAsset,
         uint256 _strikePrice,
         uint256 _expirationBlockNumber,
-        address _uniswapFactory,
-        WETH _weth
+        address _uniswapFactory
     )
     public
     PodPut(
@@ -32,7 +31,7 @@ contract wPodPut is PodPut {
         _uniswapFactory
     )
     {
-        weth = _weth;
+        weth = WETH(_underlyingAsset);
     }
 
     function exchange() external payable beforeExpiration {
