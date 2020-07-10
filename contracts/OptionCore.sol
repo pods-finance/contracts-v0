@@ -84,17 +84,18 @@ contract OptionCore is ERC20 {
         address _uniswapFactory
     ) public ERC20(name, symbol) {
         optionType = _optionType;
-        underlyingAssetDecimals = ERC20(_underlyingAsset).decimals();
-        strikeAssetDecimals = ERC20(_strikeAsset).decimals();
-
-        strikeAsset = _strikeAsset;
-        underlyingAsset = _underlyingAsset;
-        strikePrice = _strikePrice;
         expirationBlockNumber = _expirationBlockNumber;
         uniswapFactoryAddress = _uniswapFactory;
 
-        strikePriceDecimals = strikeAssetDecimals;
+        underlyingAsset = _underlyingAsset;
+        underlyingAssetDecimals = ERC20(_underlyingAsset).decimals();
         _setupDecimals(underlyingAssetDecimals);
+
+        strikeAsset = _strikeAsset;
+        strikeAssetDecimals = ERC20(_strikeAsset).decimals();
+
+        strikePrice = _strikePrice;
+        strikePriceDecimals = strikeAssetDecimals;
     }
 
     /**
