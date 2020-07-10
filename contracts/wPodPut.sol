@@ -3,13 +3,8 @@ pragma solidity ^0.6.8;
 
 import "./PodPut.sol";
 import "./interfaces/IUniswapV1.sol";
+import "./interfaces/WETH.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-
-interface WETH {
-    function deposit() external payable;
-    function withdraw(uint256 wad) external;
-    function transfer(address recipient, uint256 amount) external returns (bool);
-}
 
 contract wPodPut is PodPut {
     WETH weth;
