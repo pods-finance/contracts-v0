@@ -66,6 +66,13 @@ contract OptionCore is ERC20 {
      */
     bool public isTestingDeployment;
 
+    /** Events */
+    event Mint(address indexed seller, uint256 amount);
+    event Burn(address indexed seller, uint256 amount);
+    event Exchange(address indexed buyer, uint256 amount);
+    event Withdraw(address indexed seller, uint256 amount);
+    event SellUniswap(address indexed seller, uint256 amount);
+
     constructor(
         string memory name,
         string memory symbol,

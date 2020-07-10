@@ -67,13 +67,6 @@ contract PodPut is OptionCore {
         )
     {}
 
-    /** Events */
-    event Mint(address indexed seller, uint256 amount);
-    event Burn(address indexed seller, uint256 amount);
-    event Exchange(address indexed buyer, uint256 amount);
-    event Withdraw(address indexed seller, uint256 amount);
-    event SellUniswap(address indexed seller, uint256 amount);
-
     /**
      * @notice Gets the amount of minted options given amount of strikeAsset`.
      * @param strikeAmount of options that protect 1:1 underlying asset.
