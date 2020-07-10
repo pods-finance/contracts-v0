@@ -211,17 +211,25 @@ contract PodPut is OptionCore {
      * Options can only be exchanged while the series is NOT expired.
      */
     function exchange(uint256 amount) external beforeExpiration {
+        _internalExchange(amount);
+    }
+
+    function _internalExchange(uint256 amount) internal {
         require(amount > 0, "Null amount");
+        // Calculate the strike amount equivalent to pay for the underlying requested
+        uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
+        require(amountStrikeToTransfer > 0, "Amount too low");
+
+        // Burn the option tokens equivalent to the underlying requested
+        _burn(msg.sender, amount);
+
+        // Retrieve the underlying asset from caller
         require(
             ERC20(underlyingAsset).transferFrom(msg.sender, address(this), amount),
             "Could not transfer underlying tokens from caller"
         );
-        // Gets the payment from the caller by transfering them
-        // to this contract
-        uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
-        // Transfers the strike tokens back in exchange
-        _burn(msg.sender, amount);
-        require(amountStrikeToTransfer > 0, "Amount too low");
+
+        // Releases the strike asset to caller, completing the exchange
         require(
             ERC20(strikeAsset).transfer(msg.sender, amountStrikeToTransfer),
             "Could not transfer underlying tokens to caller"
@@ -237,10 +245,38 @@ contract PodPut is OptionCore {
      * exercised, the remaining balance is converted into the underlying asset
      * and given to the caller.
      */
-    function withdraw() external afterExpiration {
+    function withdraw() external virtual afterExpiration {
         uint256 amount = lockedBalance[msg.sender];
         require(amount > 0, "You do not have balance to withdraw");
-        _redeem(amount);
+
+        // Calculates how many underlying/strike tokens the caller
+        // will get back
+        uint256 currentStrikeBalance = ERC20(strikeAsset).balanceOf(address(this));
+        uint256 strikeToReceive = _strikeToTransfer(amount);
+        uint256 underlyingToReceive = 0;
+        if (strikeToReceive > currentStrikeBalance) {
+            uint256 remainingStrikeAmount = strikeToReceive.sub(currentStrikeBalance);
+            strikeToReceive = currentStrikeBalance;
+
+            underlyingToReceive = _underlyingToTransfer(remainingStrikeAmount);
+        }
+
+        lockedBalance[msg.sender] = lockedBalance[msg.sender].sub(amount);
+
+        // Unlocks the underlying/strike tokens
+        if (strikeToReceive > 0) {
+            require(
+                ERC20(strikeAsset).transfer(msg.sender, strikeToReceive),
+                "Could not transfer back strike tokens to caller"
+            );
+        }
+        if (underlyingToReceive > 0) {
+            require(
+                ERC20(underlyingAsset).transfer(msg.sender, underlyingToReceive),
+                "Could not transfer back underlying tokens to caller"
+            );
+        }
+        emit Withdraw(msg.sender, amount);
     }
 
     function _strikeToTransfer(uint256 amount) internal view returns (uint256) {
@@ -255,37 +291,5 @@ contract PodPut is OptionCore {
             .mul(10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals))
             .div(strikePrice);
         return underlyingAmount;
-    }
-
-    function _redeem(uint256 amount) internal {
-        // Calculates how many underlying/strike tokens the caller
-        // will get back
-        uint256 currentStrikeBalance = ERC20(strikeAsset).balanceOf(address(this));
-        uint256 strikeToReceive = _strikeToTransfer(amount);
-        uint256 underlyingToReceive = 0;
-        if (strikeToReceive > currentStrikeBalance) {
-            uint256 remainingStrikeAmount = strikeToReceive.sub(currentStrikeBalance);
-            strikeToReceive = currentStrikeBalance;
-
-            underlyingToReceive = _underlyingToTransfer(remainingStrikeAmount);
-        }
-        // require(amount <= lockedBalance[msg.sender]), "Withdraw amount exceeds lockedBalance")
-        // We need to check if the person has enough lockedBalance
-
-        // Unlocks the underlying token
-        lockedBalance[msg.sender] = lockedBalance[msg.sender].sub(amount);
-        if (strikeToReceive > 0) {
-            require(
-                ERC20(strikeAsset).transfer(msg.sender, strikeToReceive),
-                "Could not transfer back strike tokens to caller"
-            );
-        }
-        if (underlyingToReceive > 0) {
-            require(
-                ERC20(underlyingAsset).transfer(msg.sender, underlyingToReceive),
-                "Could not transfer back underlying tokens to caller"
-            );
-        }
-        emit Withdraw(msg.sender, amount);
     }
 }
