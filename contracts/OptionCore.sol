@@ -84,22 +84,14 @@ contract OptionCore is ERC20 {
         address _uniswapFactory
     ) public ERC20(name, symbol) {
         optionType = _optionType;
-        underlyingAssetDecimals = 18;
-        strikeAssetDecimals = 18;
+        underlyingAssetDecimals = ERC20(_underlyingAsset).decimals();
+        strikeAssetDecimals = ERC20(_strikeAsset).decimals();
 
         strikeAsset = _strikeAsset;
         underlyingAsset = _underlyingAsset;
         strikePrice = _strikePrice;
         expirationBlockNumber = _expirationBlockNumber;
         uniswapFactoryAddress = _uniswapFactory;
-
-        if (!_isETH(_underlyingAsset)) {
-            underlyingAssetDecimals = ERC20(_underlyingAsset).decimals();
-        }
-
-        if (!_isETH(_strikeAsset)) {
-            strikeAssetDecimals = ERC20(_strikeAsset).decimals();
-        }
 
         strikePriceDecimals = strikeAssetDecimals;
         _setupDecimals(underlyingAssetDecimals);
@@ -121,7 +113,7 @@ contract OptionCore is ERC20 {
      * locked inside this contract
      */
     function underlyingBalance() external view returns (uint256) {
-        return _contractBalanceOf(underlyingAsset);
+        return ERC20(underlyingAsset).balanceOf(address(this));
     }
 
     /**
@@ -129,7 +121,7 @@ contract OptionCore is ERC20 {
      * inside this contract
      */
     function strikeBalance() external view returns (uint256) {
-        return _contractBalanceOf(strikeAsset);
+        return ERC20(strikeAsset).balanceOf(address(this));
     }
 
     /**
@@ -166,21 +158,5 @@ contract OptionCore is ERC20 {
      */
     function _hasExpired() internal view returns (bool) {
         return block.number >= expirationBlockNumber;
-    }
-
-    /**
-     * Check if an asset is ETH which is represented by
-     * the address 0x0000000000000000000000000000000000000000
-     */
-    function _isETH(address asset) internal pure returns (bool) {
-        return asset == address(0);
-    }
-
-    function _contractBalanceOf(address asset) internal view returns (uint256) {
-        if (_isETH(asset)) {
-            return address(this).balance;
-        }
-
-        return ERC20(asset).balanceOf(address(this));
     }
 }
