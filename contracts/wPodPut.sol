@@ -3,11 +3,11 @@ pragma solidity ^0.6.8;
 
 import "./PodPut.sol";
 import "./interfaces/IUniswapV1.sol";
-import "./interfaces/WETH.sol";
+import "./interfaces/IWETH.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 contract wPodPut is PodPut {
-    WETH weth;
+    IWETH weth;
 
     constructor(
         string memory _name,
@@ -31,7 +31,7 @@ contract wPodPut is PodPut {
         _uniswapFactory
     )
     {
-        weth = WETH(_underlyingAsset);
+        weth = IWETH(_underlyingAsset);
     }
 
     function exchange() external payable beforeExpiration {
