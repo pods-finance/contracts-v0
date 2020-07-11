@@ -99,17 +99,6 @@ contract OptionCore is ERC20 {
     }
 
     /**
-     * IF this contract is deployed in TESTMODE, allows the caller
-     * to force the option series expiration in one way only.
-     */
-    function forceExpiration() external {
-        if (!isTestingDeployment) {
-            revert("Can not force series expiration on non-testing environments");
-        }
-        expirationBlockNumber = 0;
-    }
-
-    /**
      * Utility function to check the amount of the underlying tokens
      * locked inside this contract
      */
