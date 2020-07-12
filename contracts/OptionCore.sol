@@ -57,15 +57,6 @@ contract OptionCore is ERC20 {
      */
     mapping(address => uint256) public lockedBalance;
 
-    /**
-     * This flag should signal if this contract was deployed in TESTMODE;
-     * this means it is not suposed to be used with real money, and it
-     * enables some power user features useful for testing environments.
-     *
-     * On mainnet this flag should return always false.
-     */
-    bool public isTestingDeployment;
-
     constructor(
         string memory name,
         string memory symbol,
