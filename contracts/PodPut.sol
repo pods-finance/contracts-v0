@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.8;
 
-import "./OptionCore.sol";
+import "./PodOption.sol";
 import "./interfaces/IUniswapV1.sol";
 
 /**
@@ -41,13 +41,13 @@ import "./interfaces/IUniswapV1.sol";
  * - Will sell 1 DAI for 1 USDC (the strike price) each.
  * - Will burn the corresponding amounty of put tokens.
  */
-contract PodPut is OptionCore {
+contract PodPut is PodOption {
     using SafeMath for uint8;
 
     constructor(
         string memory _name,
         string memory _symbol,
-        OptionCore.OptionType _optionType,
+        PodOption.OptionType _optionType,
         address _underlyingAsset,
         address _strikeAsset,
         uint256 _strikePrice,
@@ -55,7 +55,7 @@ contract PodPut is OptionCore {
         address _uniswapFactory
     )
         public
-        OptionCore(
+        PodOption(
             _name,
             _symbol,
             _optionType,

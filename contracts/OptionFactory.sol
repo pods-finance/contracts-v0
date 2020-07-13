@@ -22,7 +22,7 @@ contract OptionFactory {
     function createOption(
         string memory _name,
         string memory _symbol,
-        OptionCore.OptionType _optionType,
+        PodOption.OptionType _optionType,
         address _underlyingAsset,
         address _strikeAsset,
         uint256 _strikePrice,
