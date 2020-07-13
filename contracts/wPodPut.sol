@@ -6,6 +6,43 @@ import "./interfaces/IUniswapV1.sol";
 import "./interfaces/IWETH.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
+/**
+ * Represents a tokenized american put option series for ETH.
+ * Internally it Wraps ETH to treat it seamlessly.
+ *
+ * It is fungible and it is meant to be freely tradable until its
+ * expiration time, when its transfer functions will be blocked
+ * and the only available operation will be for the option writers
+ * to unlock their collateral.
+ *
+ * Let's take an example: there is such a put option series where buyers
+ * may sell 1 ETH for 300 USDC until Dec 31, 2019.
+ *
+ * In this case:
+ *
+ * - Expiration date: Dec 31, 2019
+ * - Underlying asset: DAI
+ * - Strike asset: USDC
+ * - Strike price: 300 USDC
+ *
+ * USDC holders may call mint() until the expiration date, which in turn:
+ *
+ * - Will lock their USDC into this contract
+ * - Will issue put tokens corresponding to this USDC amount
+ * - These put tokens will be freely tradable until the expiration date
+ *
+ * USDC holders who also hold the option tokens may call burn() until the
+ * expiration date, which in turn:
+ *
+ * - Will unlock their USDC from this contract
+ * - Will burn the corresponding amount of put tokens
+ *
+ * Put token holders may call exchange() until the expiration date, to
+ * exercise their option, which in turn:
+ *
+ * - Will sell 1 ETH for 300 USDC (the strike price) each.
+ * - Will burn the corresponding amount of put tokens.
+ */
 contract wPodPut is PodPut {
     IWETH weth;
 
@@ -34,6 +71,23 @@ contract wPodPut is PodPut {
         weth = IWETH(_underlyingAsset);
     }
 
+    /**
+     * Allow put token holders to use them to sell some amount of units
+     * of ETH for the amount * strike price units of the strike token.
+     *
+     * It uses the amount of ETH sent to exchange to the strike amount
+     *
+     * During the process:
+     *
+     * - The amount of ETH is transferred into this contract as a payment
+     * for the strike tokens
+     * - The ETH is wrapped into WETH
+     * - The amount of ETH * strikePrice of strike tokens are transferred to the
+     * caller
+     * - The amount of option tokens are burned
+     *
+     * Options can only be exchanged while the series is NOT expired.
+     */
     function exchange() external payable beforeExpiration {
         weth.deposit{ value: msg.value }();
         require(
@@ -43,6 +97,14 @@ contract wPodPut is PodPut {
         _internalExchange(msg.value);
     }
 
+    /**
+     * After series expiration, allow addresses who have locked their strike
+     * asset tokens to withdraw them on first-come-first-serve basis.
+     *
+     * If there is not enough of strike asset because the series have been
+     * exercised, the remaining balance is converted into the underlying asset
+     * and given to the caller.
+     */
     function withdraw() external override afterExpiration {
         uint256 amount = lockedBalance[msg.sender];
         require(amount > 0, "You do not have balance to withdraw");

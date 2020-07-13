@@ -8,7 +8,7 @@ import "./interfaces/IUniswapV1.sol";
  * Represents a tokenized american put option series for some
  * long/short token pair.
  *
- * It is fungible and it is meant to be freely tradeable until its
+ * It is fungible and it is meant to be freely tradable until its
  * expiration time, when its transfer functions will be blocked
  * and the only available operation will be for the option writers
  * to unlock their collateral.
@@ -35,11 +35,11 @@ import "./interfaces/IUniswapV1.sol";
  * - Will unlock their USDC from this contract
  * - Will burn the corresponding amount of put tokens
  *
- * Put token holders may call redeem() until the expiration date, to
+ * Put token holders may call exchange() until the expiration date, to
  * exercise their option, which in turn:
  *
  * - Will sell 1 DAI for 1 USDC (the strike price) each.
- * - Will burn the corresponding amounty of put tokens.
+ * - Will burn the corresponding amount of put tokens.
  */
 contract PodPut is PodOption {
     using SafeMath for uint8;
@@ -119,7 +119,7 @@ contract PodPut is PodOption {
     /**
      * @notice Mint new option and sell it directly to Uniswap
      * @param amount The amount option tokens to be issued
-     * @param minTokensBought Minimium amount of tokens that could be acceptable bought
+     * @param minTokensBought Minimum amount of tokens that could be acceptable bought
      * @param tokenOutput Address of the ERC20 that sender wants to receive option premium
      */
     function mintAndSell(
@@ -168,7 +168,7 @@ contract PodPut is PodOption {
     }
 
     /**
-     * Unlocks some amount of the strike token by burning option tokens.
+     * Unlocks the amount of the strike token by burning option tokens.
      *
      * This mechanism ensures that users can only redeem tokens they've
      * previously lock into this contract.
@@ -281,15 +281,16 @@ contract PodPut is PodOption {
 
     function _strikeToTransfer(uint256 amount) internal view returns (uint256) {
         uint256 strikeAmount = amount.mul(strikePrice).div(
-            10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
+            10 ** underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
         );
         return strikeAmount;
     }
 
     function _underlyingToTransfer(uint256 strikeAmount) internal view returns (uint256) {
         uint256 underlyingAmount = strikeAmount
-            .mul(10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals))
+            .mul(10 ** underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals))
             .div(strikePrice);
+
         return underlyingAmount;
     }
 }
