@@ -323,7 +323,7 @@ describe('PodPut.sol', () => {
     })
     it('should revert if user try to burn after expiration', async () => {
       await forceExpiration(await podPut.expirationBlockNumber())
-      await expect(podPut.connect(seller).burn()).to.be.revertedWith('Option has not expired yet')
+      await expect(podPut.connect(seller).burn(fixtures.scenarioA.amountToMint)).to.be.revertedWith('Option has expired')
     })
   })
 
