@@ -57,15 +57,6 @@ contract OptionCore is ERC20 {
      */
     mapping(address => uint256) public lockedBalance;
 
-    /**
-     * This flag should signal if this contract was deployed in TESTMODE;
-     * this means it is not suposed to be used with real money, and it
-     * enables some power user features useful for testing environments.
-     *
-     * On mainnet this flag should return always false.
-     */
-    bool public isTestingDeployment;
-
     /** Events */
     event Mint(address indexed seller, uint256 amount);
     event Burn(address indexed seller, uint256 amount);
@@ -96,17 +87,6 @@ contract OptionCore is ERC20 {
 
         strikePrice = _strikePrice;
         strikePriceDecimals = strikeAssetDecimals;
-    }
-
-    /**
-     * IF this contract is deployed in TESTMODE, allows the caller
-     * to force the option series expiration in one way only.
-     */
-    function forceExpiration() external {
-        if (!isTestingDeployment) {
-            revert("Can not force series expiration on non-testing environments");
-        }
-        expirationBlockNumber = 0;
     }
 
     /**
