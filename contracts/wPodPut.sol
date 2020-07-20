@@ -44,7 +44,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
  * - Will burn the corresponding amount of put tokens.
  */
 contract wPodPut is PodPut {
-    IWETH weth;
+    IWETH public weth;
 
     constructor(
         string memory _name,
