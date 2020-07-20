@@ -56,20 +56,22 @@ contract wPodPut is PodPut {
         uint256 _expirationBlockNumber,
         address _uniswapFactory
     )
-    public
-    PodPut(
-        _name,
-        _symbol,
-        _optionType,
-        _underlyingAsset,
-        _strikeAsset,
-        _strikePrice,
-        _expirationBlockNumber,
-        _uniswapFactory
-    )
+        public
+        PodPut(
+            _name,
+            _symbol,
+            _optionType,
+            _underlyingAsset,
+            _strikeAsset,
+            _strikePrice,
+            _expirationBlockNumber,
+            _uniswapFactory
+        )
     {
         weth = IWETH(_underlyingAsset);
     }
+
+    event Received(address sender, uint256 value);
 
     /**
      * Allow put token holders to use them to sell some amount of units
@@ -88,13 +90,24 @@ contract wPodPut is PodPut {
      *
      * Options can only be exchanged while the series is NOT expired.
      */
-    function exchange() external payable beforeExpiration {
+    function exchangeEth() external payable beforeExpiration {
+        uint256 amount = msg.value;
+        require(amount > 0, "Null amount");
+        // Calculate the strike amount equivalent to pay for the underlying requested
+        uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
+        require(amountStrikeToTransfer > 0, "Amount too low");
+
+        // Burn the option tokens equivalent to the underlying requested
+        _burn(msg.sender, amount);
+
+        // Retrieve the underlying asset from caller
         weth.deposit{ value: msg.value }();
+        // Releases the strike asset to caller, completing the exchange
         require(
-            weth.transfer(msg.sender, msg.value),
-            "Could not wrap ETH"
+            ERC20(strikeAsset).transfer(msg.sender, amountStrikeToTransfer),
+            "Could not transfer underlying tokens to caller"
         );
-        _internalExchange(msg.value);
+        emit Exchange(msg.sender, amount);
     }
 
     /**
@@ -135,5 +148,9 @@ contract wPodPut is PodPut {
             Address.sendValue(msg.sender, underlyingToReceive);
         }
         emit Withdraw(msg.sender, amount);
+    }
+
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
     }
 }
