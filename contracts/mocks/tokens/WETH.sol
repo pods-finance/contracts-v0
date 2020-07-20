@@ -12,6 +12,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import "@openzeppelin/contracts/utils/Address.sol";
 
 pragma solidity ^0.6.8;
 
@@ -37,9 +38,9 @@ contract WETH {
     }
 
     function withdraw(uint256 wad) public {
-        require(balanceOf[msg.sender] >= wad, "");
+        require(balanceOf[msg.sender] >= wad, "not enough balance");
         balanceOf[msg.sender] -= wad;
-        msg.sender.transfer(wad);
+        Address.sendValue(msg.sender, wad);
         emit Withdrawal(msg.sender, wad);
     }
 
