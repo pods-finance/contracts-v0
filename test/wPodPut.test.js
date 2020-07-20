@@ -40,6 +40,7 @@ scenarios.forEach(scenario => {
     let sellerAddress
     let buyer
     let buyerAddress
+    let txIdNewOption
 
     before(async function () {
       [deployer, seller, buyer] = await ethers.getSigners()
@@ -48,9 +49,9 @@ scenarios.forEach(scenario => {
       buyerAddress = await buyer.getAddress()
 
       // 1) Deploy Factory
-      // const ContractFactory = await ethers.getContractFactory('OptionFactory')
-      // factoryContract = await ContractFactory.deploy()
-      // await factoryContract.deployed()
+      const ContractFactory = await ethers.getContractFactory('OptionFactory')
+      factoryContract = await ContractFactory.deploy()
+      await factoryContract.deployed()
     })
 
     beforeEach(async function () {
@@ -62,8 +63,11 @@ scenarios.forEach(scenario => {
       mockUnderlyingAsset = await MockWETH.deploy()
       mockStrikeAsset = await MockERC20.deploy(scenario.strikeAssetSymbol, scenario.strikeAssetSymbol, scenario.strikeAssetDecimals)
 
+      await mockUnderlyingAsset.deployed()
+      await mockStrikeAsset.deployed()
+
       // call transaction
-      podPut = await WPodPut.deploy(
+      txIdNewOption = await factoryContract.createEthOption(
         scenario.name,
         scenario.name,
         OPTION_TYPE_PUT,
@@ -74,21 +78,20 @@ scenarios.forEach(scenario => {
         mockUnderlyingAsset.address
       )
 
-      await podPut.deployed()
-      await mockUnderlyingAsset.deployed()
-      await mockStrikeAsset.deployed()
-
-      // const filterFrom = await factoryContract.filters.OptionCreated(deployerAddress)
-      // const eventDetails = await factoryContract.queryFilter(filterFrom, txIdNewOption.blockNumber, txIdNewOption.blockNumber)
-
-      // if (eventDetails.length) {
-      //   const { option } = eventDetails[0].args
-      //   podPut = await ethers.getContractAt('wPodPut', option)
-      // } else {
-      //   console.log('Something went wrong: No events found')
-      // }
-
       // await podPut.deployed()
+
+
+      const filterFrom = await factoryContract.filters.OptionCreated(deployerAddress)
+      const eventDetails = await factoryContract.queryFilter(filterFrom, txIdNewOption.blockNumber, txIdNewOption.blockNumber)
+
+      if (eventDetails.length) {
+        const { option } = eventDetails[0].args
+        podPut = await ethers.getContractAt('wPodPut', option)
+      } else {
+        console.log('Something went wrong: No events found')
+      }
+
+      await podPut.deployed()
     })
 
     // Aux function used to get Transaction Cost (Gas Used * Gas Price using Ethers.js)
