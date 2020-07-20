@@ -211,10 +211,6 @@ contract PodPut is PodOption {
      * Options can only be exchanged while the series is NOT expired.
      */
     function exchange(uint256 amount) external beforeExpiration {
-        _internalExchange(amount);
-    }
-
-    function _internalExchange(uint256 amount) internal {
         require(amount > 0, "Null amount");
         // Calculate the strike amount equivalent to pay for the underlying requested
         uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
@@ -281,14 +277,14 @@ contract PodPut is PodOption {
 
     function _strikeToTransfer(uint256 amount) internal view returns (uint256) {
         uint256 strikeAmount = amount.mul(strikePrice).div(
-            10 ** underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
+            10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
         );
         return strikeAmount;
     }
 
     function _underlyingToTransfer(uint256 strikeAmount) internal view returns (uint256) {
         uint256 underlyingAmount = strikeAmount
-            .mul(10 ** underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals))
+            .mul(10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals))
             .div(strikePrice);
 
         return underlyingAmount;
