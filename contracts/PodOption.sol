@@ -4,7 +4,7 @@ pragma solidity ^0.6.8;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract PodOption is ERC20 {
+abstract contract PodOption is ERC20 {
     enum OptionType { PUT, CALL }
 
     OptionType public optionType;
