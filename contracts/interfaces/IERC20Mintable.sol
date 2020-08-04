@@ -2,11 +2,11 @@
 pragma solidity ^0.6.8;
 
 interface ERC20Mintable {
-    function mint(uint256) external returns (bool);
+    function mint(uint256 amount) external returns (bool);
 
-    function transfer(address, uint256) external;
+    function transfer(address recipient, uint256 amount) external returns (bool);
 
-    function approve(address, uint256) external;
+    function approve(address spender, uint256 amount) external returns (bool);
 
     function decimals() external returns (uint8);
 }
