@@ -1,10 +1,12 @@
+// This is a sample Buidler task. To learn how to create your own go to
+// https://buidler.dev/guides/create-task.html
+require('./tasks/test.js')
 require('dotenv').config()
 
 usePlugin('@nomiclabs/buidler-waffle')
 usePlugin('@nomiclabs/buidler-web3')
+usePlugin('solidity-coverage')
 
-// This is a sample Buidler task. To learn how to create your own go to
-// https://buidler.dev/guides/create-task.html
 task('accounts', 'Prints the list of accounts', async () => {
   const accounts = await ethers.getSigners()
 
@@ -15,6 +17,9 @@ task('accounts', 'Prints the list of accounts', async () => {
 
 module.exports = {
   networks: {
+    coverage: {
+      url: 'http://localhost:8555'
+    },
     development: {
       protocol: 'http',
       host: 'localhost',
