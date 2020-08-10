@@ -1,4 +1,5 @@
 const { expect } = require('chai')
+const forceExpiration = require('./util/forceExpiration')
 
 const OPTION_TYPE_PUT = 0
 
@@ -139,14 +140,6 @@ scenarios.forEach(scenario => {
       expect(finalContractOptionSupply).to.equal(initialContractOptionSupply.sub(amountOfOptionsToExercise))
     }
 
-    async function forceExpiration (untilThisBlock) {
-      let currentBlock = await ethers.provider.getBlockNumber()
-      while (currentBlock <= untilThisBlock) {
-        await ethers.provider.send('evm_mine')
-        currentBlock++
-      }
-    }
-
     describe('Constructor/Initialization checks', () => {
       it('should have correct number of decimals for underlying and strike asset', async () => {
         expect(await wPodPut.strikeAssetDecimals()).to.equal(scenario.strikeAssetDecimals)
@@ -218,7 +211,7 @@ scenarios.forEach(scenario => {
         await mockStrikeAsset.connect(seller).mint(scenario.strikePrice)
 
         expect(await mockStrikeAsset.balanceOf(sellerAddress)).to.equal(scenario.strikePrice)
-        await forceExpiration(await wPodPut.expirationBlockNumber())
+        await forceExpiration(wPodPut)
         await expect(
           wPodPut.connect(seller).mint(scenario.amountToMint, sellerAddress)
         ).to.be.revertedWith('Option has expired')
@@ -266,7 +259,7 @@ scenarios.forEach(scenario => {
         // Transfer mint to Buyer address => This will happen through Uniswap
         await wPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
         // Mint Underlying Asset
-        await forceExpiration(await wPodPut.expirationBlockNumber())
+        await forceExpiration(wPodPut)
         await expect(wPodPut.connect(seller).exerciseEth({ value: scenario.amountToMint })).to.be.revertedWith('Option has expired')
       })
     })
@@ -307,7 +300,7 @@ scenarios.forEach(scenario => {
         expect(finalContractUnderlyingBalance).to.equal(0)
       })
       it('should revert if user try to burn after expiration', async () => {
-        await forceExpiration(await wPodPut.expirationBlockNumber())
+        await forceExpiration(wPodPut)
         await expect(
           wPodPut.connect(seller).burn(scenario.amountToMint)
         ).to.be.revertedWith('Option has expired')
@@ -320,10 +313,7 @@ scenarios.forEach(scenario => {
       })
 
       it('should revert if user try to withdraw without balance after expiration', async () => {
-        // Set Expiration
-        const optionExpiration = await wPodPut.expirationBlockNumber()
-        await forceExpiration(optionExpiration)
-
+        await forceExpiration(wPodPut)
         await expect(wPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
       })
 
@@ -338,9 +328,7 @@ scenarios.forEach(scenario => {
         expect(initialSellerStrikeBalance).to.equal(0)
         expect(initialContractStrikeBalance).to.equal(scenario.strikePrice)
 
-        const optionExpiration = await wPodPut.expirationBlockNumber()
-        await forceExpiration(optionExpiration)
-
+        await forceExpiration(wPodPut)
         await wPodPut.connect(seller).withdraw()
 
         const finalSellerOptionBalance = await wPodPut.balanceOf(sellerAddress)
@@ -371,8 +359,7 @@ scenarios.forEach(scenario => {
         expect(initialContractStrikeBalance).to.equal(ethers.BigNumber.from(scenario.strikePrice).div(2))
         expect(initialContractUnderlyingBalance).to.equal(halfAmountMint)
 
-        const optionExpiration = await wPodPut.expirationBlockNumber()
-        await forceExpiration(optionExpiration)
+        await forceExpiration(wPodPut)
         const txWithdraw = await wPodPut.connect(seller).withdraw()
         const txCost = await getTxCost(txWithdraw)
 
