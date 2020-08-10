@@ -65,12 +65,15 @@ scenarios.forEach(scenario => {
     let sellerAddress
     let buyer
     let buyerAddress
+    let delegator
+    let delegatorAddress
 
     before(async function () {
-      [deployer, seller, buyer] = await ethers.getSigners()
+      [deployer, seller, buyer, delegator] = await ethers.getSigners()
       deployerAddress = await deployer.getAddress()
       sellerAddress = await seller.getAddress()
       buyerAddress = await buyer.getAddress()
+      delegatorAddress = await delegator.getAddress()
 
       // 1) Deploy Factory
       const ContractFactory = await ethers.getContractFactory('OptionFactory')
@@ -220,6 +223,19 @@ scenarios.forEach(scenario => {
         expect(await podPut.balanceOf(sellerAddress)).to.equal(scenario.amountToMint)
         expect(await mockStrikeAsset.balanceOf(sellerAddress)).to.equal(0)
       })
+
+      it('should be able to mint on others behalf', async () => {
+        expect(await podPut.balanceOf(delegatorAddress)).to.equal(0)
+
+        await mockStrikeAsset.connect(seller).approve(podPut.address, ethers.constants.MaxUint256)
+        await mockStrikeAsset.connect(seller).mint(scenario.strikePrice)
+        expect(await mockStrikeAsset.balanceOf(sellerAddress)).to.equal(scenario.strikePrice)
+
+        await podPut.connect(seller).mint(scenario.amountToMint, delegatorAddress)
+        expect(await podPut.balanceOf(delegatorAddress)).to.equal(scenario.amountToMint)
+        expect(await mockStrikeAsset.balanceOf(sellerAddress)).to.equal(0)
+      })
+
       it('should revert if user try to mint after expiration', async () => {
         expect(await podPut.balanceOf(sellerAddress)).to.equal(0)
 
