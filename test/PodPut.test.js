@@ -1,7 +1,6 @@
 const { expect } = require('chai')
 const forceExpiration = require('./util/forceExpiration')
-
-const OPTION_TYPE_PUT = 0
+const { UNISWAP_FACTORY_ADDRESS, OPTION_TYPE_PUT } = require('./util/constants')
 
 const scenarios = [
   {
@@ -82,7 +81,7 @@ scenarios.forEach(scenario => {
       const MockWETH = await ethers.getContractFactory('WETH')
 
       const mockWeth = await MockWETH.deploy()
-      factoryContract = await ContractFactory.deploy(mockWeth.address)
+      factoryContract = await ContractFactory.deploy(mockWeth.address, UNISWAP_FACTORY_ADDRESS)
       mockUnderlyingAsset = await MockERC20.deploy(scenario.underlyingAssetSymbol, scenario.underlyingAssetSymbol, scenario.underlyingAssetDecimals)
       mockStrikeAsset = await MockERC20.deploy(scenario.strikeAssetSymbol, scenario.strikeAssetSymbol, scenario.strikeAssetDecimals)
 
@@ -94,8 +93,7 @@ scenarios.forEach(scenario => {
         mockUnderlyingAsset.address,
         mockStrikeAsset.address,
         scenario.strikePrice,
-        await ethers.provider.getBlockNumber() + 300, // expirationDate = high block number
-        mockUnderlyingAsset.address
+        await ethers.provider.getBlockNumber() + 300 // expirationDate = high block number
       )
 
       const filterFrom = await factoryContract.filters.OptionCreated(deployerAddress)

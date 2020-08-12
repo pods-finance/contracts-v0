@@ -1,4 +1,5 @@
 const { expect } = require('chai')
+const { UNISWAP_FACTORY_ADDRESS } = require('./util/constants')
 
 let optionFactory
 let underlyingAsset
@@ -21,7 +22,7 @@ describe('OptionFactory', function () {
     const mockWeth = await MockWETH.deploy()
     underlyingAsset = await MockERC20.deploy('Wrapped BTC', 'WBTC', 8, 1000e8)
     strikeAsset = await MockERC20.deploy('USDC Token', 'USDC', 6, 1000e8)
-    optionFactory = await OptionFactory.deploy(mockWeth.address)
+    optionFactory = await OptionFactory.deploy(mockWeth.address, UNISWAP_FACTORY_ADDRESS)
 
     await optionFactory.deployed()
     await underlyingAsset.deployed()
@@ -29,7 +30,7 @@ describe('OptionFactory', function () {
   })
 
   it('Should create a new Option correctly and emit event', async function () {
-    const funcParameters = [ScenarioA.name, ScenarioA.symbol, ScenarioA.optionType, underlyingAsset.address, strikeAsset.address, ScenarioA.strikePrice, ScenarioA.expirationDate, strikeAsset.address]
+    const funcParameters = [ScenarioA.name, ScenarioA.symbol, ScenarioA.optionType, underlyingAsset.address, strikeAsset.address, ScenarioA.strikePrice, ScenarioA.expirationDate]
 
     await expect(optionFactory.createOption(...funcParameters)).to.emit(optionFactory, 'OptionCreated')
   })
