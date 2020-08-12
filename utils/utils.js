@@ -28,12 +28,6 @@ const avgBlocktime = {
  * @returns {Date}
  */
 function getBlockDate (currentBlockNumber, targetBlockNumber, networkVersion) {
-  console.log('currentBlockNumber')
-  console.log(currentBlockNumber)
-  console.log('targetBlockNumber')
-  console.log(targetBlockNumber)
-  console.log('networkVersion')
-  console.log(networkVersion)
   const diffBetweenBlocksInMilliseconds = (targetBlockNumber - currentBlockNumber) * avgBlocktime[networkVersion] * 1000
   const now = new Date().valueOf()
   const targetDate = new Date(now + diffBetweenBlocksInMilliseconds)
