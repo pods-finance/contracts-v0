@@ -5,7 +5,7 @@ const erc20ABI = require('../abi/erc20.json')
 const { getBlockDate } = require('../utils/utils')
 
 task('deploySerie', 'Initial Option series setup: create an option, create a uniswap exchange and add initial liquidity')
-  .addParam('underlying', 'symbol of strike asset. (E.G: wbtc)')
+  .addParam('underlying', 'symbol of underlying asset. (E.G: wbtc)')
   .addParam('strike', 'symbol of strike asset. (E.G: usdc)')
   .addParam('price', 'Units of strikeAsset in order to trade for 1 unit of underlying. (E.G: 7000)')
   .addParam('expiration', 'Block number of the expiration')
