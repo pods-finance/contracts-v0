@@ -4,7 +4,7 @@ const UniswapExchangeABI = require('../abi/uniswap_exchange.json')
 const erc20ABI = require('../abi/erc20.json')
 const { getBlockDate } = require('../utils/utils')
 
-task('deploySerie', "Prints an account's balance")
+task('deploySerie', 'Initial Option series setup: create an option, create a uniswap exchange and add initial liquidity')
   .addParam('underlying', 'symbol of strike asset. (E.G: wbtc)')
   .addParam('strike', 'symbol of strike asset. (E.G: usdc)')
   .addParam('price', 'Units of strikeAsset in order to trade for 1 unit of underlying. (E.G: 7000)')
