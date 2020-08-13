@@ -29,6 +29,16 @@ contract OptionExchange {
         uniswapFactory = IUniswapFactory(_uniswapFactoryAddress);
     }
 
+    /**
+     * Mints an amount of options and sell it in liquidity provider
+     * @notice Mint and sell options
+     *
+     * @param option The option contract to mint
+     * @param amount Amount of options to mint
+     * @param outputToken The token to which the premium will be paid
+     * @param minOutputAmount Minimum amount of output tokens accepted
+     * @param deadline The deadline in unix-timestamp that limits the transaction from happening
+     */
     function sellOptions(
         IPodPut option,
         uint256 amount,
