@@ -105,7 +105,7 @@ contract PodPut is PodOption {
      */
     function mint(uint256 amount, address owner) external override beforeExpiration {
         lockedBalance[owner] = lockedBalance[owner].add(amount);
-        _mint(owner, amount);
+        _mint(msg.sender, amount);
 
         uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
 
@@ -130,7 +130,7 @@ contract PodPut is PodOption {
         address owner
     ) external beforeExpiration returns (uint256) {
         lockedBalance[owner] = lockedBalance[owner].add(amount);
-        _mint(owner, amount);
+        _mint(msg.sender, amount);
 
         uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
 
