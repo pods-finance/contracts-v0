@@ -2,11 +2,17 @@
 pragma solidity ^0.6.8;
 
 interface IPodPut {
-    function mint(uint256) external;
+    function mint(uint256, address) external;
 
     function exchange(uint256) external;
 
     function withdraw(address) external;
+
+    function transfer(address recipient, uint256 amount) external returns (bool);
+
+    function transferFrom(address owner, address recipient, uint256 amount) external returns (bool);
+
+    function approve(address spender, uint256 amount) external returns (bool);
 
     function underlyingAsset() external view returns (address);
 
