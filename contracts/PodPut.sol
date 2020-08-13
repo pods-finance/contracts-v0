@@ -102,7 +102,7 @@ contract PodPut is PodOption {
      * for instance amount * strikePrice units of strikeToken into this
      * contract
      */
-    function mint(uint256 amount) external override beforeExpiration {
+    function mint(uint256 amount) external virtual override beforeExpiration {
         lockedBalance[msg.sender] = lockedBalance[msg.sender].add(amount);
         _mint(msg.sender, amount);
 
