@@ -227,7 +227,8 @@ scenarios.forEach(scenario => {
         expect(await mockStrikeAsset.balanceOf(sellerAddress)).to.equal(scenario.strikePrice)
 
         await podPut.connect(seller).mint(scenario.amountToMint, delegatorAddress)
-        expect(await podPut.balanceOf(delegatorAddress)).to.equal(scenario.amountToMint)
+        expect(await podPut.balanceOf(sellerAddress)).to.equal(scenario.amountToMint)
+        expect(await podPut.lockedBalance(delegatorAddress)).to.equal(scenario.amountToMint)
         expect(await mockStrikeAsset.balanceOf(sellerAddress)).to.equal(0)
       })
 
