@@ -7,7 +7,7 @@ module.exports = async function getUniswapMock (deployer) {
 
   await uniswapFactory.mock.getExchange.returns(ethers.constants.AddressZero)
 
-  const createExchange = async (tokenAddress, boughtTokens) => {
+  const createExchange = async (tokenAddress, returnValue) => {
     const uniswapExchange = await deployMockContract(deployer, UniswapExchangeABI)
 
     await uniswapFactory.mock.getExchange
@@ -15,7 +15,10 @@ module.exports = async function getUniswapMock (deployer) {
       .returns(uniswapExchange.address)
 
     await uniswapExchange.mock.tokenToTokenTransferInput
-      .returns(boughtTokens)
+      .returns(returnValue)
+
+    await uniswapExchange.mock.tokenToTokenTransferOutput
+      .returns(returnValue)
 
     return uniswapExchange
   }

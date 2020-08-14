@@ -1,7 +1,7 @@
 const { expect } = require('chai')
 const getUniswapMock = require('./util/getUniswapMock')
 
-describe.only('OptionExchange', () => {
+describe('OptionExchange', () => {
   let ContractFactory, MockERC20, ExchangeContract, WETH
   let exchange, uniswapFactory, createExchange
   let underlyingAsset, strikeAsset, weth
@@ -40,32 +40,16 @@ describe.only('OptionExchange', () => {
     const factoryContract = await ContractFactory.deploy(weth.address)
     podPut = await makeOption(factoryContract, underlyingAsset, strikeAsset)
     exchange = await ExchangeContract.deploy(uniswapFactory.address)
+
+    // Approving Strike Asset(Collateral) transfer into the Exchange
+    await strikeAsset.connect(seller).approve(exchange.address, ethers.constants.MaxUint256)
   })
 
   it('assigns the exchange address correctly', async () => {
     expect(await exchange.uniswapFactory()).to.equal(uniswapFactory.address)
   })
 
-  // describe('Buy', () => {
-  //   it('buys the exact amount of options', async () => {
-  //     const option = await makeOption(underlyingAsset, strikeAsset)
-  //
-  //     console.log(exchange.buyExactOptions(option.address, ))
-  //   })
-
-    // it('buys options with a exact amount of tokens', async () => {
-    //
-    // })
-
-    // it('fails to buy when the exchange do not exist', async () => {})
-  // })
-
   describe('Sell', () => {
-    beforeEach(async () => {
-      // Approving Strike Asset(Collateral) transfer into the Exchange
-      await strikeAsset.connect(seller).approve(exchange.address, ethers.constants.MaxUint256)
-    })
-
     it('sells the exact amount of options', async () => {
       const outputToken = strikeAsset.address
       const minOutputAmount = ethers.BigNumber.from(200e6.toString())
@@ -133,6 +117,89 @@ describe.only('OptionExchange', () => {
         amountToMint,
         outputToken,
         minOutputAmount,
+        deadline
+      )
+
+      await expect(tx).to.be.revertedWith('Transaction timeout')
+    })
+  })
+
+  describe('Buy', () => {
+    it('buys the exact amount of options', async () => {
+      const inputToken = strikeAsset.address
+      const minAcceptedCost = ethers.BigNumber.from(200e6.toString())
+      const amountToBuy = ethers.BigNumber.from(1e8.toString())
+      const deadline = await getTimestamp() + 60
+
+      // Creates the Uniswap exchange
+      await createExchange(podPut.address, minAcceptedCost)
+
+      const tx = exchange.connect(seller).buyExactOptions(
+        podPut.address,
+        amountToBuy,
+        inputToken,
+        minAcceptedCost,
+        deadline
+      )
+
+      await expect(tx)
+        .to.emit(exchange, 'OptionsBought')
+        .withArgs(sellerAddress, podPut.address, amountToBuy, inputToken, minAcceptedCost)
+    })
+
+    it('buys options with a exact amount of tokens', async () => {
+      const inputToken = strikeAsset.address
+      const inputAmount = ethers.BigNumber.from(200e6.toString())
+      const minAcceptedOptions = ethers.BigNumber.from(1e8.toString())
+      const deadline = await getTimestamp() + 60
+
+      // Creates the Uniswap exchange
+      await createExchange(inputToken, minAcceptedOptions)
+
+      const tx = exchange.connect(seller).buyOptionsWithExactTokens(
+        podPut.address,
+        minAcceptedOptions,
+        inputToken,
+        inputAmount,
+        deadline
+      )
+
+      await expect(tx)
+        .to.emit(exchange, 'OptionsBought')
+        .withArgs(sellerAddress, podPut.address, minAcceptedOptions, inputToken, inputAmount)
+    })
+
+    it('fails to buy when the exchange do not exist', async () => {
+      const inputToken = strikeAsset.address
+      const cost = ethers.BigNumber.from(200e6.toString())
+      const amountToBuy = ethers.BigNumber.from(1e8.toString())
+      const deadline = await getTimestamp() + 60
+
+      const tx = exchange.connect(seller).buyExactOptions(
+        podPut.address,
+        amountToBuy,
+        inputToken,
+        cost,
+        deadline
+      )
+
+      await expect(tx).to.be.revertedWith('Exchange not found')
+    })
+
+    it('fails when the deadline has passed', async () => {
+      const inputToken = strikeAsset.address
+      const cost = ethers.BigNumber.from(200e6.toString())
+      const amountToBuy = ethers.BigNumber.from(1e8.toString())
+      const deadline = await getTimestamp()
+
+      // Creates the Uniswap exchange
+      await createExchange(podPut.address, cost)
+
+      const tx = exchange.connect(seller).buyExactOptions(
+        podPut.address,
+        amountToBuy,
+        inputToken,
+        cost,
         deadline
       )
 
