@@ -29,6 +29,11 @@ contract OptionExchange {
         uniswapFactory = IUniswapFactory(_uniswapFactoryAddress);
     }
 
+    modifier withinDeadline(uint256 deadline) {
+        require(deadline > block.timestamp, "Transaction timeout");
+        _;
+    }
+
     /**
      * Mints an amount of options and sell it in liquidity provider
      * @notice Mint and sell options
@@ -45,8 +50,7 @@ contract OptionExchange {
         address outputToken,
         uint256 minOutputAmount,
         uint256 deadline
-    ) external {
-        require(deadline > block.timestamp, "Transaction timeout");
+    ) external withinDeadline(deadline) {
         uint256 strikeToTransfer = option.strikeToTransfer(amount);
 
         IERC20 strikeAsset = IERC20(option.strikeAsset());
