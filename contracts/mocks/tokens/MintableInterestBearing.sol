@@ -25,7 +25,6 @@ contract MintableInterestBearing is ERC20 {
     }
 
     function earnInterest(address owner) public {
-        uint256 numberOfIntervals = block.number - lastUpdate;
         uint256 currentBalance = this.balanceOf(owner);
         uint256 earnedInterest = currentBalance.div(uint256(100));
         _mint(owner, earnedInterest);
