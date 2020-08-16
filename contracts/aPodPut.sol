@@ -96,7 +96,14 @@ contract aPodPut is PodPut {
 
         if (totalLockedWeighted > 0) {
             uint256 strikeReserves = ERC20(strikeAsset).balanceOf(address(this));
-            uint256 userLockedWeighted = amountToTransfer.mul(totalLockedWeighted).div(strikeReserves) + 1;
+            uint256 underlyingReserves = ERC20(underlyingAsset).balanceOf(address(this));
+
+            uint256 numerator = amountToTransfer.mul(totalLockedWeighted);
+            uint256 denominator = strikeReserves.add(
+                underlyingReserves.mul(strikePrice).div((uint256(10)**underlyingAssetDecimals))
+            );
+
+            uint256 userLockedWeighted = numerator.div(denominator);
             totalLockedWeighted = totalLockedWeighted.add(userLockedWeighted);
             weightedBalances[msg.sender] = weightedBalances[msg.sender].add(userLockedWeighted);
         } else {
@@ -119,24 +126,39 @@ contract aPodPut is PodPut {
     //  *
     //  * Options can only be burned while the series is NOT expired.
     //  */
-    // function burn(uint256 amount) external override beforeExpiration {
-    //     require(amount <= lockedBalance[msg.sender], "Not enough underlying balance");
+    function burn(uint256 amount) external override beforeExpiration {
+        uint256 weightedBalance = weightedBalances[msg.sender];
+        require(weightedBalance > 0, "You do not have minted options");
 
-    //     uint256 amountToTransfer = amount.mul(strikePrice).div(
-    //         10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
-    //     );
+        uint256 mintedOptions = weightedBalance.mul(this.totalSupply()).div(totalLockedWeighted);
+        require(amount <= mintedOptions, "Exceed address minted options");
 
-    //     // Burn option tokens
-    //     lockedBalance[msg.sender] = lockedBalance[msg.sender].sub(amount);
-    //     _burn(msg.sender, amount);
+        uint256 strikeReserves = ERC20(strikeAsset).balanceOf(address(this));
+        uint256 underlyingReserves = ERC20(underlyingAsset).balanceOf(address(this));
 
-    //     require(amountToTransfer > 0, "You need to increase amount");
-    //     // Unlocks the strike token
-    //     require(
-    //         ERC20(strikeAsset).transfer(msg.sender, amountToTransfer),
-    //         "Couldn't transfer back strike tokens to caller"
-    //     );
-    // }
+        uint256 userWeightedWithdraw = weightedBalance.mul(amount).div(this.totalSupply());
+
+        uint256 strikeToReceive = userWeightedWithdraw.mul(strikeReserves).div(totalLockedWeighted);
+
+        weightedBalances[msg.sender] = weightedBalances[msg.sender].sub(userWeightedWithdraw);
+        totalLockedWeighted = totalLockedWeighted.sub(userWeightedWithdraw);
+
+        _burn(msg.sender, amount);
+
+        // Unlocks the strike token
+        require(
+            ERC20(strikeAsset).transfer(msg.sender, strikeToReceive),
+            "Couldn't transfer back strike tokens to caller"
+        );
+
+        if (underlyingReserves > 0) {
+            uint256 underlyingToReceive = userWeightedWithdraw.mul(underlyingReserves).div(totalLockedWeighted);
+            require(
+                ERC20(underlyingAsset).transfer(msg.sender, underlyingToReceive),
+                "Couldn't transfer back strike tokens to caller"
+            );
+        }
+    }
 
     /**
      * After series expiration, allow addresses who have locked their strike
@@ -149,12 +171,12 @@ contract aPodPut is PodPut {
     function withdraw() external override afterExpiration {
         uint256 weightedBalance = weightedBalances[msg.sender];
         require(weightedBalance > 0, "You do not have balance to withdraw");
-        // Calculates how many underlying/strike tokens the caller
-        // will get back
+
         uint256 strikeReserves = ERC20(strikeAsset).balanceOf(address(this));
         uint256 underlyingReserves = ERC20(underlyingAsset).balanceOf(address(this));
+
         uint256 strikeToReceive = weightedBalance.mul(strikeReserves).div(totalLockedWeighted);
-        uint256 underlyingToReceive = weightedBalance.mul(underlyingReserves).div(totalLockedWeighted);
+
         weightedBalances[msg.sender] = weightedBalances[msg.sender].sub(weightedBalance);
         totalLockedWeighted = totalLockedWeighted.sub(weightedBalance);
 
@@ -163,6 +185,7 @@ contract aPodPut is PodPut {
             "Couldn't transfer back strike tokens to caller"
         );
         if (underlyingReserves > 0) {
+            uint256 underlyingToReceive = weightedBalance.mul(underlyingReserves).div(totalLockedWeighted);
             require(
                 ERC20(underlyingAsset).transfer(msg.sender, underlyingToReceive),
                 "Couldn't transfer back strike tokens to caller"
