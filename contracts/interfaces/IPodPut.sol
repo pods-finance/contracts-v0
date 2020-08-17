@@ -8,6 +8,8 @@ interface IPodPut {
 
     function withdraw(address) external;
 
+    function unwind(uint256) external;
+
     function transfer(address recipient, uint256 amount) external returns (bool);
 
     function transferFrom(
