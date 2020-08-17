@@ -69,8 +69,7 @@ scenarios.forEach(scenario => {
         OPTION_TYPE_PUT,
         mockStrikeAsset.address,
         scenario.strikePrice,
-        await ethers.provider.getBlockNumber() + 300, // expirationDate = high block number
-        mockUnderlyingAsset.address
+        await ethers.provider.getBlockNumber() + 300 // expirationDate = high block number
       )
 
       const filterFrom = await factoryContract.filters.OptionCreated(deployerAddress)

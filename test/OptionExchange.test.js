@@ -219,8 +219,7 @@ async function makeOption (factoryContract, underlyingAsset, strikeAsset) {
     underlyingAsset.address,
     strikeAsset.address,
     strikePrice,
-    await ethers.provider.getBlockNumber() + 300, // expirationDate = high block number
-    underlyingAsset.address
+    await ethers.provider.getBlockNumber() + 300 // expirationDate = high block number
   )
 
   const [deployer] = await ethers.getSigners()
