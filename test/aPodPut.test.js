@@ -238,7 +238,7 @@ scenarios.forEach(scenario => {
         // Approve PodPut spend underlying asset
         await mockUnderlyingAsset.connect(buyer).approve(aPodPut.address, ethers.constants.MaxUint256)
         expect(await mockUnderlyingAsset.balanceOf(buyerAddress)).to.equal(scenario.amountToMint)
-        await expect(aPodPut.connect(buyer).exercise(scenario.amountToMint)).to.be.revertedWith('ERC20: unwind amount exceeds balance')
+        await expect(aPodPut.connect(buyer).exercise(scenario.amountToMint)).to.be.revertedWith('ERC20: burn amount exceeds balance')
       })
 
       it('should revert if sender not have enough strike balance', async () => {
