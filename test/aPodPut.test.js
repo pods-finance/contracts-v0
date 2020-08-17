@@ -60,19 +60,22 @@ scenarios.forEach(scenario => {
     let deployer
     let deployerAddress
     let seller
+    let another
+    let anotherAddress
     let sellerAddress
     let buyer
     let buyerAddress
     let txIdNewOption
 
     before(async function () {
-      [deployer, seller, buyer] = await ethers.getSigners()
+      [deployer, seller, buyer, another] = await ethers.getSigners()
       deployerAddress = await deployer.getAddress()
       sellerAddress = await seller.getAddress()
       buyerAddress = await buyer.getAddress()
+      anotherAddress = await another.getAddress()
 
       // 1) Deploy Factory
-      const ContractFactory = await ethers.getContractFactory('OptionFactory')
+      const ContractFactory = await ethers.getContractFactory('BearingOptionFactory')
       factoryContract = await ContractFactory.deploy()
       await factoryContract.deployed()
     })
@@ -138,30 +141,12 @@ scenarios.forEach(scenario => {
       expect(await mockStrikeAsset.balanceOf(signerAddress)).to.equal(0)
     }
 
-    // async function ExercisePhase (amountOfOptionsToExercise) {
-    //   await wPodPut.connect(seller).transfer(buyerAddress, amountOfOptionsToExercise)
-
-    //   const initialBuyerOptionBalance = await wPodPut.balanceOf(buyerAddress)
-    //   const initialBuyerUnderlyingBalance = await ethers.provider.getBalance(buyerAddress)
-    //   const initialContractUnderlyingBalance = await wPodPut.underlyingBalance()
-    //   const initialContractOptionSupply = await wPodPut.totalSupply()
-
-    //   expect(initialBuyerOptionBalance).to.equal(amountOfOptionsToExercise)
-    //   expect(initialContractUnderlyingBalance).to.equal(0)
-    //   expect(initialContractOptionSupply).to.equal(scenario.amountToMint)
-    //   const txExercise = await wPodPut.connect(buyer).exerciseEth({ value: amountOfOptionsToExercise })
-    //   const txCost = await getTxCost(txExercise)
-
-    //   const finalBuyerOptionBalance = await wPodPut.balanceOf(buyerAddress)
-    //   const finalBuyerUnderlyingBalance = await ethers.provider.getBalance(buyerAddress)
-    //   const finalContractUnderlyingBalance = await wPodPut.underlyingBalance()
-    //   const finalContractOptionSupply = await wPodPut.totalSupply()
-
-    //   expect(finalBuyerOptionBalance).to.equal(0)
-    //   expect(finalBuyerUnderlyingBalance).to.equal(initialBuyerUnderlyingBalance.sub(amountOfOptionsToExercise).sub(txCost))
-    //   expect(finalContractUnderlyingBalance).to.equal(amountOfOptionsToExercise)
-    //   expect(finalContractOptionSupply).to.equal(initialContractOptionSupply.sub(amountOfOptionsToExercise))
-    // }
+    async function ExercisePhase (amountOfOptionsToExercise, signer = seller, receiver = buyer, receiverAddress = buyerAddress) {
+      await aPodPut.connect(signer).transfer(receiverAddress, amountOfOptionsToExercise)
+      await mockUnderlyingAsset.connect(receiver).mint(scenario.amountToMint)
+      await mockUnderlyingAsset.connect(receiver).approve(aPodPut.address, ethers.constants.MaxUint256)
+      await aPodPut.connect(receiver).exercise(amountOfOptionsToExercise)
+    }
 
     async function forceExpiration (untilThisBlock) {
       let currentBlock = await ethers.provider.getBlockNumber()
@@ -257,92 +242,173 @@ scenarios.forEach(scenario => {
       })
     })
 
-    // describe('Exercising options', () => {
-    //   it('should revert if user have underlying enough, but dont have enough options', async () => {
-    //     expect(await ethers.provider.getBalance(buyerAddress)).to.gte(scenario.amountToMint)
-    //     await expect(wPodPut.connect(buyer).exerciseEth({ value: scenario.amountToMint })).to.be.revertedWith('ERC20: burn amount exceeds balance')
-    //   })
-    //   it('should exercise and have all final balances matched', async () => {
-    //     await MintPhase(scenario.amountToMint)
-    //     // Transfer mint to Buyer address => This will happen through Uniswap
-    //     await wPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
+    describe('Exercising options', () => {
+      it('should revert if user have underlying approved, but dont have enough options', async () => {
+        // Mint underlying
+        await mockUnderlyingAsset.connect(buyer).mint(scenario.amountToMint)
+        // Approve PodPut spend underlying asset
+        await mockUnderlyingAsset.connect(buyer).approve(aPodPut.address, ethers.constants.MaxUint256)
+        expect(await mockUnderlyingAsset.balanceOf(buyerAddress)).to.equal(scenario.amountToMint)
+        await expect(aPodPut.connect(buyer).exercise(scenario.amountToMint)).to.be.revertedWith('ERC20: burn amount exceeds balance')
+      })
 
-    //     const initialBuyerOptionBalance = await wPodPut.balanceOf(buyerAddress)
-    //     const initialBuyerUnderlyingBalance = await ethers.provider.getBalance(buyerAddress)
-    //     const initialContractUnderlyingBalance = await wPodPut.underlyingBalance()
-    //     const initialContractStrikeBalance = await wPodPut.strikeBalance()
-    //     const initialContractOptionSupply = await wPodPut.totalSupply()
+      it('should revert if sender not have enough strike balance', async () => {
+        await MintPhase(scenario.amountToMint)
+        // Transfer mint to Buyer address => This will happen through Uniswap
+        await aPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
+        expect(await aPodPut.balanceOf(buyerAddress)).to.equal(scenario.amountToMint)
+        // Approve PodPut spend underlying asset
+        await mockUnderlyingAsset.connect(buyer).approve(aPodPut.address, ethers.constants.MaxUint256)
+        await expect(aPodPut.connect(buyer).exercise(scenario.amountToMint)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
+      })
 
-    //     expect(initialBuyerOptionBalance).to.equal(scenario.amountToMint)
-    //     // expect(initialBuyerUnderlyingBalance).to.equal(scenario.amountToMint)
-    //     expect(initialContractUnderlyingBalance).to.equal(0)
-    //     expect(initialContractStrikeBalance).to.equal(scenario.strikePrice)
-    //     expect(initialContractOptionSupply).to.equal(scenario.amountToMint)
-    //     const txExercise = await wPodPut.connect(buyer).exerciseEth({ value: scenario.amountToMint })
+      it('should revert if not approved strike balance', async () => {
+        await MintPhase(scenario.amountToMint)
+        // Transfer mint to Buyer address => This will happen through Uniswap
+        await aPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
+        expect(await aPodPut.balanceOf(buyerAddress)).to.equal(scenario.amountToMint)
+        // Mint Underlying Asset
+        await mockUnderlyingAsset.connect(buyer).mint(scenario.amountToMint)
+        expect(await mockUnderlyingAsset.balanceOf(buyerAddress)).to.equal(scenario.amountToMint)
+        await expect(aPodPut.connect(buyer).exercise(scenario.amountToMint)).to.be.revertedWith('ERC20: transfer amount exceeds allowance')
+      })
 
-    //     const txCost = await getTxCost(txExercise)
-    //     const finalBuyerOptionBalance = await wPodPut.balanceOf(buyerAddress)
-    //     const finalBuyerUnderlyingBalance = await ethers.provider.getBalance(buyerAddress)
-    //     const finalContractUnderlyingBalance = await wPodPut.underlyingBalance()
-    //     const finalContractStrikeBalance = await wPodPut.strikeBalance()
-    //     const finalContractOptionSupply = await wPodPut.totalSupply()
+      it('should exercise and have all final balances matched', async () => {
+        await MintPhase(scenario.amountToMint)
+        // Transfer mint to Buyer address => This will happen through Uniswap
+        await aPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
 
-    //     expect(finalBuyerOptionBalance).to.equal(0)
-    //     expect(finalBuyerUnderlyingBalance).to.equal(initialBuyerUnderlyingBalance.sub(scenario.amountToMint).sub(txCost))
-    //     expect(finalContractUnderlyingBalance).to.equal(scenario.amountToMint)
-    //     expect(finalContractStrikeBalance).to.equal(0)
-    //     expect(finalContractOptionSupply).to.equal(0)
-    //   })
-    //   it('should revert if user try to exercise after expiration', async () => {
-    //     await MintPhase(scenario.amountToMint)
-    //     // Transfer mint to Buyer address => This will happen through Uniswap
-    //     await wPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
-    //     // Mint Underlying Asset
-    //     await forceExpiration(await wPodPut.expirationBlockNumber())
-    //     await expect(wPodPut.connect(seller).exerciseEth({ value: scenario.amountToMint })).to.be.revertedWith('Option has expired')
-    //   })
-    // })
+        // Mint Underlying Asset
+        await mockUnderlyingAsset.connect(buyer).mint(scenario.amountToMint)
+        // Approve Underlying to be spent by contract
+        await mockUnderlyingAsset.connect(buyer).approve(aPodPut.address, ethers.constants.MaxUint256)
 
-    // describe('Burning options', () => {
-    //   it('should revert if try to burn without amount', async () => {
-    //     await expect(wPodPut.connect(seller).burn(scenario.amountToMint)).to.be.revertedWith('Not enough balance')
-    //   })
-    //   it('should revert if try to burn amount higher than possible', async () => {
-    //     await MintPhase(scenario.amountToMint)
-    //     await expect(wPodPut.connect(seller).burn(2 * scenario.amountToMint)).to.be.revertedWith('Not enough balance')
-    //   })
-    //   it('should burn, destroy sender option, reduce his balance and send strike back', async () => {
-    //     await MintPhase(scenario.amountToMint)
-    //     const initialSellerOptionBalance = await wPodPut.balanceOf(sellerAddress)
-    //     const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-    //     const initialContractUnderlyingBalance = await wPodPut.underlyingBalance()
-    //     const initialContractStrikeBalance = await wPodPut.strikeBalance()
-    //     const initialContractOptionSupply = await wPodPut.totalSupply()
+        const initialBuyerOptionBalance = await aPodPut.balanceOf(buyerAddress)
+        const initialBuyerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(buyerAddress)
+        const initialContractUnderlyingBalance = await aPodPut.underlyingBalance()
+        const initialContractStrikeBalance = await aPodPut.strikeBalance()
+        const initialContractOptionSupply = await aPodPut.totalSupply()
 
-    //     expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
-    //     expect(initialSellerStrikeBalance).to.equal(0)
-    //     expect(initialContractUnderlyingBalance).to.equal(0)
-    //     expect(initialContractStrikeBalance).to.equal(scenario.strikePrice)
-    //     expect(initialContractOptionSupply).to.equal(scenario.amountToMint)
-    //     await expect(wPodPut.connect(seller).burn(scenario.amountToMint))
+        expect(initialBuyerOptionBalance).to.equal(scenario.amountToMint)
+        expect(initialBuyerUnderlyingBalance).to.equal(scenario.amountToMint)
+        expect(initialContractUnderlyingBalance).to.equal(0)
+        expect(initialContractStrikeBalance).to.equal(scenario.strikePrice)
+        expect(initialContractOptionSupply).to.equal(scenario.amountToMint)
+        await expect(aPodPut.connect(buyer).exercise(scenario.amountToMint))
 
-    //     const finalSellerOptionBalance = await wPodPut.balanceOf(sellerAddress)
-    //     const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-    //     const finalContractUnderlyingBalance = await wPodPut.underlyingBalance()
-    //     const finalContractStrikeBalance = await wPodPut.strikeBalance()
-    //     const finalContractOptionSupply = await wPodPut.totalSupply()
+        const finalBuyerOptionBalance = await aPodPut.balanceOf(buyerAddress)
+        const finalBuyerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(buyerAddress)
+        const finalContractUnderlyingBalance = await aPodPut.underlyingBalance()
+        const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        const finalContractOptionSupply = await aPodPut.totalSupply()
 
-    //     expect(finalSellerOptionBalance).to.equal(0)
-    //     expect(finalSellerStrikeBalance).to.equal(scenario.strikePrice)
-    //     expect(finalContractStrikeBalance).to.equal(0)
-    //     expect(finalContractOptionSupply).to.equal(0)
-    //     expect(finalContractUnderlyingBalance).to.equal(0)
-    //   })
-    //   it('should revert if user try to burn after expiration', async () => {
-    //     await forceExpiration(await wPodPut.expirationBlockNumber())
-    //     await expect(wPodPut.connect(seller).burn()).to.be.revertedWith('Option has not expired yet')
-    //   })
-    // })
+        expect(finalBuyerOptionBalance).to.equal(0)
+        expect(finalBuyerUnderlyingBalance).to.equal(0)
+        expect(finalContractUnderlyingBalance).to.equal(scenario.amountToMint)
+        expect(finalContractStrikeBalance).to.equal(0)
+        expect(finalContractOptionSupply).to.equal(0)
+      })
+      it('should revert if user try to exercise after expiration', async () => {
+        await MintPhase(scenario.amountToMint)
+        // Transfer mint to Buyer address => This will happen through Uniswap
+        await aPodPut.connect(seller).transfer(buyerAddress, scenario.amountToMint)
+        // Mint Underlying Asset
+        await mockUnderlyingAsset.connect(buyer).mint(scenario.amountToMint)
+        expect(await mockUnderlyingAsset.balanceOf(buyerAddress)).to.equal(scenario.amountToMint)
+        await forceExpiration(await aPodPut.expirationBlockNumber())
+        await expect(aPodPut.connect(seller).exercise(scenario.amountToMint)).to.be.reverted
+      })
+    })
+
+    describe('Burning options', () => {
+      it('should revert if try to burn without amount', async () => {
+        await expect(aPodPut.connect(seller).burn(scenario.amountToMint)).to.be.revertedWith('You do not have minted options')
+      })
+      it('should revert if try to burn amount higher than possible', async () => {
+        await MintPhase(scenario.amountToMint)
+        await expect(aPodPut.connect(seller).burn(2 * scenario.amountToMint)).to.be.revertedWith('Exceed address minted options')
+      })
+      it('should burn, destroy sender option, reduce his balance and send strike back', async () => {
+        await MintPhase(scenario.amountToMint)
+        const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+        const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const initialContractUnderlyingBalance = await aPodPut.underlyingBalance()
+        const initialContractStrikeBalance = await aPodPut.strikeBalance()
+        const initialContractOptionSupply = await aPodPut.totalSupply()
+
+        expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
+        expect(initialSellerStrikeBalance).to.equal(0)
+        expect(initialContractUnderlyingBalance).to.equal(0)
+        expect(initialContractStrikeBalance).to.equal(scenario.strikePrice)
+        expect(initialContractOptionSupply).to.equal(scenario.amountToMint)
+        await expect(aPodPut.connect(seller).burn(scenario.amountToMint))
+
+        const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+        const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const finalContractUnderlyingBalance = await aPodPut.underlyingBalance()
+        const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        const finalContractOptionSupply = await aPodPut.totalSupply()
+
+        expect(finalSellerOptionBalance).to.equal(0)
+        expect(finalSellerStrikeBalance).to.equal(scenario.strikePrice)
+        expect(finalContractStrikeBalance).to.equal(0)
+        expect(finalContractOptionSupply).to.equal(0)
+        expect(finalContractUnderlyingBalance).to.equal(0)
+      })
+      it('should burn, destroy seller option, reduce his balance and send strike back counting interests (Ma-Mb-UNa)', async () => {
+        await MintPhase(scenario.amountToMint)
+        await mockStrikeAsset.earnInterest(aPodPut.address)
+        await MintPhase(scenario.amountToMint, buyer)
+        await mockStrikeAsset.earnInterest(aPodPut.address)
+
+        const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+        const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const initialContractUnderlyingBalance = await aPodPut.underlyingBalance()
+        const initialContractStrikeBalance = await aPodPut.strikeBalance()
+        const initialContractOptionSupply = await aPodPut.totalSupply()
+
+        await expect(aPodPut.connect(seller).burn(scenario.amountToMint))
+
+        const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+        const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const finalContractUnderlyingBalance = await aPodPut.underlyingBalance()
+        const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        const finalContractOptionSupply = await aPodPut.totalSupply()
+
+        expect(finalSellerOptionBalance).to.equal(initialSellerOptionBalance.sub(scenario.amountToMint))
+        expect(finalSellerStrikeBalance).to.gte(initialSellerStrikeBalance.add(scenario.strikePrice))
+        expect(finalContractStrikeBalance).to.gte(scenario.strikePrice)
+        expect(finalContractOptionSupply).to.equal(initialContractOptionSupply - scenario.amountToMint)
+        expect(finalContractUnderlyingBalance).to.equal(initialContractUnderlyingBalance)
+      })
+      it('should burn, destroy seller option, reduce his balance and send strike back counting interests (Ma-Mb-UNa-UNb)', async () => {
+        await MintPhase(scenario.amountToMint)
+        await mockStrikeAsset.earnInterest(aPodPut.address)
+        await MintPhase(scenario.amountToMint, buyer)
+        await mockStrikeAsset.earnInterest(aPodPut.address)
+        await expect(aPodPut.connect(seller).burn(scenario.amountToMint))
+
+        const initialContractUnderlyingBalance = await aPodPut.underlyingBalance()
+
+        await expect(aPodPut.connect(buyer).burn(scenario.amountToMint))
+
+        const finalBuyerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+        const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        const finalContractOptionSupply = await aPodPut.totalSupply()
+        const finalContractUnderlyingBalance = await aPodPut.underlyingBalance()
+
+        expect(finalBuyerOptionBalance).to.equal(0)
+        expect(finalBuyerStrikeBalance).to.gte(scenario.strikePrice) // earned interests
+        expect(finalContractStrikeBalance).to.equal(0)
+        expect(finalContractOptionSupply).to.equal(0)
+        expect(finalContractUnderlyingBalance).to.equal(initialContractUnderlyingBalance)
+      })
+      it('should revert if user try to burn after expiration', async () => {
+        await forceExpiration(await aPodPut.expirationBlockNumber())
+        await expect(aPodPut.connect(seller).burn()).to.be.revertedWith('Option has not expired yet')
+      })
+    })
 
     describe('Withdrawing options', () => {
       it('should revert if user try to withdraw before expiration', async () => {
@@ -357,118 +423,132 @@ scenarios.forEach(scenario => {
         await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
       })
 
-      it('should withdraw Strike Asset balance plus interest earned', async () => {
-        await MintPhase(scenario.amountToMint)
-        // Earned 10% interest
-        await mockStrikeAsset.earnInterest(aPodPut.address)
-        const earnedInterest = scenario.strikePrice.div(ethers.BigNumber.from('100'))
-        // Set Expiration
-        const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-        const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-        const initialContractStrikeBalance = await aPodPut.strikeBalance()
+      // it('should withdraw Strike Asset balance plus interest earned', async () => {
+      //   await MintPhase(scenario.amountToMint)
+      //   // Earned 10% interest
+      //   await mockStrikeAsset.earnInterest(aPodPut.address)
+      //   const earnedInterest = scenario.strikePrice.div(ethers.BigNumber.from('100'))
+      //   // Set Expiration
+      //   const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+      //   const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+      //   const initialContractStrikeBalance = await aPodPut.strikeBalance()
 
-        expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
-        expect(initialSellerStrikeBalance).to.equal(0)
-        expect(initialContractStrikeBalance).to.equal(scenario.strikePrice.add(earnedInterest))
+      //   expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
+      //   expect(initialSellerStrikeBalance).to.equal(0)
+      //   expect(initialContractStrikeBalance).to.equal(scenario.strikePrice.add(earnedInterest))
+
+      //   const optionExpiration = await aPodPut.expirationBlockNumber()
+      //   await forceExpiration(optionExpiration)
+
+      //   await aPodPut.connect(seller).withdraw()
+
+      //   const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+      //   const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+      //   const finalContractStrikeBalance = await aPodPut.strikeBalance()
+
+      //   expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
+      //   expect(finalSellerStrikegBalance).to.equal(scenario.strikePrice.add(earnedInterest))
+      //   expect(finalContractStrikeBalance).to.equal(0)
+      //   // Cant withdraw two times in a row
+      //   // await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+      // })
+
+      // it('should withdraw Strike Asset balance plus interest earned proportional (Ma-Mb-Wa-Wb)', async () => {
+      //   // seller 1
+      //   await MintPhase(scenario.amountToMint)
+
+      //   await mockStrikeAsset.earnInterest(aPodPut.address)
+
+      //   // seller 1
+      //   const twoTimesAmountToMint = scenario.amountToMint.mul(ethers.BigNumber.from('2'))
+      //   await MintPhase(twoTimesAmountToMint, buyer)
+      //   const optionDecimals = await aPodPut.decimals()
+
+      //   // Earned 10% interest
+      //   await mockStrikeAsset.earnInterest(aPodPut.address)
+      //   // Set Expiration
+      //   const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+      //   const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+      //   const initialContractStrikeBalance = await aPodPut.strikeBalance()
+
+      //   expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
+      //   expect(initialSellerStrikeBalance).to.equal(0)
+      //   expect(initialContractStrikeBalance).to.gt(scenario.strikePrice.add(twoTimesAmountToMint))
+
+      //   const optionExpiration = await aPodPut.expirationBlockNumber()
+      //   await forceExpiration(optionExpiration)
+
+      //   await aPodPut.connect(seller).withdraw()
+
+      //   const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+      //   const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+
+      //   expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
+      //   expect(finalSellerStrikegBalance).to.gt(scenario.strikePrice)
+      //   expect(finalSellerStrikegBalance).to.lt(scenario.strikePrice.mul(twoTimesAmountToMint).div(10 ** optionDecimals))
+      //   // Cant withdraw two times in a row
+      //   await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+
+      //   await aPodPut.connect(buyer).withdraw()
+
+      //   const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
+      //   const finalContractStrikeBalance = await aPodPut.strikeBalance()
+
+      //   expect(finalBuyerStrikeBalance).to.gt(scenario.strikePrice.mul(twoTimesAmountToMint).div(10 ** optionDecimals))
+      //   expect(finalContractStrikeBalance).to.equal(0)
+      //   await expect(aPodPut.connect(buyer).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+      // })
+
+      it('should withdraw mixed amount of Strike Asset and Underlying Asset (Ma-Mb-Ec-Wa-Wb)', async () => {
+        // Ma => Mint with user A (seller)
+        await MintPhase(scenario.amountToMint)
+        await mockStrikeAsset.earnInterest(aPodPut.address)
+        const halfAmountMint = ethers.BigNumber.from(scenario.amountToMint).div(2)
+        await MintPhase(scenario.amountToMint, buyer)
+        await mockStrikeAsset.earnInterest(aPodPut.address)
+        await ExercisePhase(halfAmountMint, seller, another, anotherAddress)
 
         const optionExpiration = await aPodPut.expirationBlockNumber()
         await forceExpiration(optionExpiration)
 
-        await aPodPut.connect(seller).withdraw()
-
-        const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-        const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-        const finalContractStrikeBalance = await aPodPut.strikeBalance()
-
-        expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
-        expect(finalSellerStrikegBalance).to.equal(scenario.strikePrice.add(earnedInterest))
-        expect(finalContractStrikeBalance).to.equal(0)
-        // Cant withdraw two times in a row
-        // await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
-      })
-
-      it('should withdraw Strike Asset balance plus interest earned proportional', async () => {
-        // seller 1
-        await MintPhase(scenario.amountToMint)
-
-        await mockStrikeAsset.earnInterest(aPodPut.address)
-
-        // seller 1
-        const twoTimesAmountToMint = scenario.amountToMint.mul(ethers.BigNumber.from('2'))
-        await MintPhase(twoTimesAmountToMint, buyer)
-        const optionDecimals = await aPodPut.decimals()
-
-        // Earned 10% interest
-        await mockStrikeAsset.earnInterest(aPodPut.address)
-        // Set Expiration
-        const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
+        const underlyingDecimals = await mockUnderlyingAsset.decimals()
+        // Checking balance before withdraw
+        const initialSellerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(sellerAddress)
         const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-        const initialContractStrikeBalance = await aPodPut.strikeBalance()
 
-        expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
-        expect(initialSellerStrikeBalance).to.equal(0)
-        expect(initialContractStrikeBalance).to.gt(scenario.strikePrice.add(twoTimesAmountToMint))
-
-        const optionExpiration = await aPodPut.expirationBlockNumber()
-        await forceExpiration(optionExpiration)
-
-        await aPodPut.connect(seller).withdraw()
-
-        const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-        const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-
-        expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
-        expect(finalSellerStrikegBalance).to.gt(scenario.strikePrice)
-        expect(finalSellerStrikegBalance).to.lt(scenario.strikePrice.mul(twoTimesAmountToMint).div(10 ** optionDecimals))
-        // Cant withdraw two times in a row
+        await expect(aPodPut.connect(seller).withdraw())
         await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
 
-        await aPodPut.connect(buyer).withdraw()
+        const finalSellerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(sellerAddress)
+        const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
 
-        const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
-        const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        const earnedSellerStrike = finalSellerStrikeBalance.sub(initialSellerStrikeBalance)
+        const earnedSellerUnderlying = finalSellerUnderlyingBalance.sub(initialSellerUnderlyingBalance)
+        const earnedSellerInUnitsOfStrike = earnedSellerUnderlying.mul(scenario.strikePrice).div(10 ** underlyingDecimals)
+        const totalEarned = earnedSellerStrike.add(earnedSellerInUnitsOfStrike)
 
-        expect(finalBuyerStrikeBalance).to.gt(scenario.strikePrice.mul(twoTimesAmountToMint).div(10 ** optionDecimals))
-        expect(finalContractStrikeBalance).to.equal(0)
+        const initialSellerStriked = await aPodPut.strikeToTransfer(scenario.amountToMint)
+
+        expect(totalEarned).to.gte(initialSellerStriked)
+
+        const initialBuyerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(buyerAddress)
+        const initialBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
+
+        await expect(aPodPut.connect(buyer).withdraw())
         await expect(aPodPut.connect(buyer).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+
+        const finalBuyerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(buyerAddress)
+        const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
+
+        const earnedBuyerStrike = finalBuyerStrikeBalance.sub(initialBuyerStrikeBalance)
+        const earnedBuyerUnderlying = finalBuyerUnderlyingBalance.sub(initialBuyerUnderlyingBalance)
+        const earnedBuyerInUnitsOfStrike = earnedBuyerUnderlying.mul(scenario.strikePrice).div(10 ** underlyingDecimals)
+        const totalEarnedBuyer = earnedBuyerStrike.add(earnedBuyerInUnitsOfStrike)
+
+        const initialBuyerStriked = await aPodPut.strikeToTransfer(scenario.amountToMint)
+
+        expect(totalEarnedBuyer).to.gte(initialBuyerStriked)
       })
-
-      // it('should withdraw mixed amount of Strike Asset and Underlying Asset', async () => {
-      //   const halfAmountMint = ethers.BigNumber.from(scenario.amountToMint).div(2)
-      //   await MintPhase(scenario.amountToMint)
-      //   // Exercise half amount of options
-      //   await ExercisePhase(halfAmountMint)
-      //   // Checking balance before withdraw
-      //   const initialSellerOptionBalance = await wPodPut.balanceOf(sellerAddress)
-      //   const initialSellerUnderlyingBalance = await ethers.provider.getBalance(sellerAddress)
-      //   const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-      //   const initialContractStrikeBalance = await wPodPut.strikeBalance()
-      //   const initialContractUnderlyingBalance = await wPodPut.underlyingBalance()
-
-      //   expect(initialSellerOptionBalance).to.equal(halfAmountMint)
-      //   expect(initialSellerStrikeBalance).to.equal(0)
-      //   expect(initialContractStrikeBalance).to.equal(ethers.BigNumber.from(scenario.strikePrice).div(2))
-      //   expect(initialContractUnderlyingBalance).to.equal(halfAmountMint)
-
-      //   const optionExpiration = await wPodPut.expirationBlockNumber()
-      //   await forceExpiration(optionExpiration)
-      //   const txWithdraw = await wPodPut.connect(seller).withdraw()
-      //   const txCost = await getTxCost(txWithdraw)
-
-      //   const finalSellerOptionBalance = await wPodPut.balanceOf(sellerAddress)
-      //   const finalSellerUnderlyingBalance = await ethers.provider.getBalance(sellerAddress)
-      //   const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-      //   const finalContractStrikeBalance = await wPodPut.strikeBalance()
-      //   const finalContractUnderlyingBalance = await wPodPut.underlyingBalance()
-
-      //   expect(finalSellerOptionBalance).to.equal(halfAmountMint)
-      //   expect(finalSellerUnderlyingBalance).to.equal(initialSellerUnderlyingBalance.add(halfAmountMint).sub(txCost))
-      //   expect(finalSellerStrikeBalance).to.equal(ethers.BigNumber.from(scenario.strikePrice).div(2))
-      //   expect(finalContractStrikeBalance).to.equal(0)
-      //   expect(finalContractUnderlyingBalance).to.equal(0)
-      //   // Cant withdraw two times in a row
-      //   await expect(wPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
-      // })
     })
   })
 })
