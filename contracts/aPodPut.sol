@@ -2,7 +2,6 @@
 pragma solidity ^0.6.8;
 
 import "./PodPut.sol";
-import "@nomicLabs/buidler/console.sol";
 
 /**
  * Represents a tokenized american put option series for some
@@ -44,6 +43,7 @@ import "@nomicLabs/buidler/console.sol";
 contract aPodPut is PodPut {
     using SafeMath for uint8;
     mapping(address => uint256) public weightedBalances;
+    mapping(address => uint256) public mintedOptions;
     uint256 public totalLockedWeighted = 0;
 
     constructor(
@@ -105,9 +105,11 @@ contract aPodPut is PodPut {
 
             uint256 userLockedWeighted = numerator.div(denominator);
             totalLockedWeighted = totalLockedWeighted.add(userLockedWeighted);
+            mintedOptions[msg.sender] = mintedOptions[msg.sender].add(amount);
             weightedBalances[msg.sender] = weightedBalances[msg.sender].add(userLockedWeighted);
         } else {
             weightedBalances[msg.sender] = amountToTransfer;
+            mintedOptions[msg.sender] = amount;
             totalLockedWeighted = amountToTransfer;
         }
 
@@ -130,17 +132,17 @@ contract aPodPut is PodPut {
         uint256 weightedBalance = weightedBalances[msg.sender];
         require(weightedBalance > 0, "You do not have minted options");
 
-        uint256 mintedOptions = weightedBalance.mul(this.totalSupply()).div(totalLockedWeighted);
-        require(amount <= mintedOptions, "Exceed address minted options");
+        uint256 userMintedOptions = mintedOptions[msg.sender];
+        require(amount <= userMintedOptions, "Exceed address minted options");
 
         uint256 strikeReserves = ERC20(strikeAsset).balanceOf(address(this));
         uint256 underlyingReserves = ERC20(underlyingAsset).balanceOf(address(this));
 
-        uint256 userWeightedWithdraw = weightedBalance.mul(amount).div(this.totalSupply());
-
+        uint256 userWeightedWithdraw = weightedBalance.mul(amount).div(userMintedOptions);
         uint256 strikeToReceive = userWeightedWithdraw.mul(strikeReserves).div(totalLockedWeighted);
 
         weightedBalances[msg.sender] = weightedBalances[msg.sender].sub(userWeightedWithdraw);
+        mintedOptions[msg.sender] = mintedOptions[msg.sender].sub(amount);
         totalLockedWeighted = totalLockedWeighted.sub(userWeightedWithdraw);
 
         _burn(msg.sender, amount);
@@ -176,6 +178,7 @@ contract aPodPut is PodPut {
         uint256 underlyingReserves = ERC20(underlyingAsset).balanceOf(address(this));
 
         uint256 strikeToReceive = weightedBalance.mul(strikeReserves).div(totalLockedWeighted);
+        uint256 underlyingToReceive = weightedBalance.mul(underlyingReserves).div(totalLockedWeighted);
 
         weightedBalances[msg.sender] = weightedBalances[msg.sender].sub(weightedBalance);
         totalLockedWeighted = totalLockedWeighted.sub(weightedBalance);
@@ -185,7 +188,6 @@ contract aPodPut is PodPut {
             "Couldn't transfer back strike tokens to caller"
         );
         if (underlyingReserves > 0) {
-            uint256 underlyingToReceive = weightedBalance.mul(underlyingReserves).div(totalLockedWeighted);
             require(
                 ERC20(underlyingAsset).transfer(msg.sender, underlyingToReceive),
                 "Couldn't transfer back strike tokens to caller"
