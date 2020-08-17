@@ -175,7 +175,7 @@ contract PodPut is PodOption {
      *
      * Options can only be burned while the series is NOT expired.
      */
-    function burn(uint256 amount) external override beforeExpiration {
+    function burn(uint256 amount) external virtual override beforeExpiration {
         require(amount <= lockedBalance[msg.sender], "Not enough balance");
 
         // Burn option tokens
