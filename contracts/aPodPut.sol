@@ -86,7 +86,7 @@ contract aPodPut is PodPut {
      * for instance amount * strikePrice units of strikeToken into this
      * contract
      */
-    function mint(uint256 amount) external override beforeExpiration {
+    function mint(uint256 amount, address owner) external override beforeExpiration {
         require(amount > 0, "Null amount");
 
         uint256 amountToTransfer = amount.mul(strikePrice).div(
@@ -105,11 +105,11 @@ contract aPodPut is PodPut {
 
             uint256 userLockedWeighted = numerator.div(denominator);
             totalLockedWeighted = totalLockedWeighted.add(userLockedWeighted);
-            mintedOptions[msg.sender] = mintedOptions[msg.sender].add(amount);
-            weightedBalances[msg.sender] = weightedBalances[msg.sender].add(userLockedWeighted);
+            mintedOptions[owner] = mintedOptions[owner].add(amount);
+            weightedBalances[owner] = weightedBalances[owner].add(userLockedWeighted);
         } else {
-            weightedBalances[msg.sender] = amountToTransfer;
-            mintedOptions[msg.sender] = amount;
+            weightedBalances[owner] = amountToTransfer;
+            mintedOptions[owner] = amount;
             totalLockedWeighted = amountToTransfer;
         }
 
@@ -128,7 +128,7 @@ contract aPodPut is PodPut {
     //  *
     //  * Options can only be burned while the series is NOT expired.
     //  */
-    function burn(uint256 amount) external override beforeExpiration {
+    function unwind(uint256 amount) external override beforeExpiration {
         uint256 weightedBalance = weightedBalances[msg.sender];
         require(weightedBalance > 0, "You do not have minted options");
 

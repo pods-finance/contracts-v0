@@ -101,10 +101,11 @@ contract PodPut is PodOption {
      * @param amount The amount option tokens to be issued; this will lock
      * for instance amount * strikePrice units of strikeToken into this
      * contract
+     * @param owner Which address will be the owner of the options
      */
-    function mint(uint256 amount) external virtual override beforeExpiration {
-        lockedBalance[msg.sender] = lockedBalance[msg.sender].add(amount);
-        _mint(msg.sender, amount);
+    function mint(uint256 amount, address owner) external virtual override beforeExpiration {
+        lockedBalance[owner] = lockedBalance[owner].add(amount);
+        _mint(owner, amount);
 
         uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
 
@@ -113,7 +114,7 @@ contract PodPut is PodOption {
             ERC20(strikeAsset).transferFrom(msg.sender, address(this), amountStrikeToTransfer),
             "Could not transfer strike tokens from caller"
         );
-        emit Mint(msg.sender, amount);
+        emit Mint(owner, amount);
     }
 
     /**
@@ -125,10 +126,11 @@ contract PodPut is PodOption {
     function mintAndSell(
         uint256 amount,
         uint256 minTokensBought,
-        address tokenOutput
+        address tokenOutput,
+        address owner
     ) external beforeExpiration returns (uint256) {
-        lockedBalance[msg.sender] = lockedBalance[msg.sender].add(amount);
-        _mint(address(this), amount);
+        lockedBalance[owner] = lockedBalance[owner].add(amount);
+        _mint(owner, amount);
 
         uint256 amountStrikeToTransfer = _strikeToTransfer(amount);
 
@@ -174,8 +176,9 @@ contract PodPut is PodOption {
      * previously lock into this contract.
      *
      * Options can only be burned while the series is NOT expired.
+     * @param amount The amount option tokens to be burned
      */
-    function burn(uint256 amount) external virtual override beforeExpiration {
+    function unwind(uint256 amount) external virtual override beforeExpiration {
         require(amount <= lockedBalance[msg.sender], "Not enough balance");
 
         // Burn option tokens
@@ -189,7 +192,7 @@ contract PodPut is PodOption {
             ERC20(strikeAsset).transfer(msg.sender, amountStrikeToTransfer),
             "Could not transfer back strike tokens to caller"
         );
-        emit Burn(msg.sender, amount);
+        emit Unwind(msg.sender, amount);
     }
 
     /**
@@ -209,6 +212,7 @@ contract PodPut is PodOption {
      * this contract as a payment for the strike tokens
      *
      * Options can only be exchanged while the series is NOT expired.
+     * @param amount The amount option tokens to be exercised
      */
     function exercise(uint256 amount) external override beforeExpiration {
         require(amount > 0, "Null amount");

@@ -1,4 +1,6 @@
 require('dotenv').config()
+require('./tasks/balance')
+require('./tasks/deployNewSerie')
 
 usePlugin('@nomiclabs/buidler-waffle')
 usePlugin('@nomiclabs/buidler-web3')
@@ -43,7 +45,7 @@ module.exports = {
     }
   },
   solc: {
-    version: '0.6.8',
+    version: '0.6.12',
     optimizer: {
       enabled: true,
       runs: 200
