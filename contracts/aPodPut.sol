@@ -56,15 +56,7 @@ contract aPodPut is PodPut {
         uint256 _expirationBlockNumber
     )
         public
-        PodPut(
-            _name,
-            _symbol,
-            _optionType,
-            _underlyingAsset,
-            _strikeAsset,
-            _strikePrice,
-            _expirationBlockNumber
-        )
+        PodPut(_name, _symbol, _optionType, _underlyingAsset, _strikeAsset, _strikePrice, _expirationBlockNumber)
     {}
 
     /**
@@ -116,6 +108,7 @@ contract aPodPut is PodPut {
             ERC20(strikeAsset).transferFrom(msg.sender, address(this), amountToTransfer),
             "Couldn't transfer strike tokens from caller"
         );
+        emit Mint(owner, amount);
     }
 
     // /**
@@ -158,6 +151,7 @@ contract aPodPut is PodPut {
                 "Couldn't transfer back strike tokens to caller"
             );
         }
+        emit Unwind(msg.sender, amount);
     }
 
     /**
@@ -191,7 +185,6 @@ contract aPodPut is PodPut {
                 "Couldn't transfer back strike tokens to caller"
             );
         }
+        emit Withdraw(msg.sender, amount);
     }
-
-    function _redeem(uint256 weightedBalance) internal {}
 }
