@@ -64,10 +64,14 @@ contract OptionExchange {
 
         address optionAddress = address(option);
 
+        // Approving Strike transfer to Option
         strikeAsset.approve(optionAddress, strikeToTransfer);
         option.mint(optionAmount, msg.sender);
 
         IUniswapExchange optionExchange = getExchange(optionAddress);
+
+        // Approving Option transfer to Exchange
+        option.approve(address(optionExchange), optionAmount);
 
         uint256 minEthBought = 1;
 
