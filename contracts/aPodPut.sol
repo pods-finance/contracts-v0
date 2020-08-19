@@ -82,7 +82,7 @@ contract aPodPut is PodPut {
         uint256 amountToTransfer = amount.mul(strikePrice).div(
             10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
         );
-        require(amountToTransfer > 0, "You need to increase amount");
+        require(amountToTransfer > 0, "Amount too low");
 
         if (totalLockedWeighted > 0) {
             uint256 strikeReserves = ERC20(strikeAsset).balanceOf(address(this));
