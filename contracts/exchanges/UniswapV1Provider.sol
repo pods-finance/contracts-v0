@@ -4,7 +4,6 @@ pragma solidity ^0.6.8;
 import "./ExchangeProvider.sol";
 import "../interfaces/IUniswapV1.sol";
 
-
 contract UniswapV1Provider is ExchangeProvider {
     IUniswapFactory public uniswapFactory;
 
@@ -20,7 +19,7 @@ contract UniswapV1Provider is ExchangeProvider {
         uint256 deadline,
         address recipient
     ) external override withinDeadline(deadline) returns (uint256 outputBought) {
-        IUniswapExchange exchange = getExchange(inputToken);
+        IUniswapExchange exchange = _getExchange(inputToken);
 
         uint256 minEthBought = 1;
 
@@ -48,7 +47,7 @@ contract UniswapV1Provider is ExchangeProvider {
         uint256 deadline,
         address recipient
     ) external override withinDeadline(deadline) returns (uint256 inputSold) {
-        IUniswapExchange exchange = getExchange(inputToken);
+        IUniswapExchange exchange = _getExchange(inputToken);
 
         uint256 maxEthBought = uint256(-1);
 
@@ -74,7 +73,7 @@ contract UniswapV1Provider is ExchangeProvider {
      * @param tokenAddress An address of token to be traded
      * @return IUniswapExchange
      */
-    function getExchange(address tokenAddress) internal view returns(IUniswapExchange) {
+    function _getExchange(address tokenAddress) internal view returns (IUniswapExchange) {
         address exchangeOptionAddress = uniswapFactory.getExchange(tokenAddress);
         require(exchangeOptionAddress != address(0), "Exchange not found");
         return IUniswapExchange(exchangeOptionAddress);
