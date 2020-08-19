@@ -110,9 +110,7 @@ scenarios.forEach(scenario => {
 
     async function ExercisePhase (amountOfOptionsToExercise, signer = seller, receiver = buyer, receiverAddress = buyerAddress) {
       await waPodPut.connect(signer).transfer(receiverAddress, amountOfOptionsToExercise)
-      await mockUnderlyingAsset.connect(receiver).mint(scenario.amountToMint)
-      await mockUnderlyingAsset.connect(receiver).approve(waPodPut.address, ethers.constants.MaxUint256)
-      await waPodPut.connect(receiver).exercise(amountOfOptionsToExercise)
+      await waPodPut.connect(receiver).exerciseEth({ value: amountOfOptionsToExercise })
     }
 
     describe('Constructor/Initialization checks', () => {
@@ -348,132 +346,133 @@ scenarios.forEach(scenario => {
         await expect(waPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
       })
 
-      // it('should withdraw Strike Asset balance plus interest earned', async () => {
-      //   await MintPhase(scenario.amountToMint)
-      //   // Earned 10% interest
-      //   await mockStrikeAsset.earnInterest(aPodPut.address)
-      //   const earnedInterest = scenario.strikePrice.div(ethers.BigNumber.from('100'))
-      //   // Set Expiration
-      //   const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-      //   const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-      //   const initialContractStrikeBalance = await aPodPut.strikeBalance()
+      it('should withdraw Strike Asset balance plus interest earned', async () => {
+        await MintPhase(scenario.amountToMint)
+        // Earned 10% interest
+        await mockStrikeAsset.earnInterest(waPodPut.address)
+        const earnedInterest = scenario.strikePrice.div(ethers.BigNumber.from('100'))
+        // Set Expiration
+        const initialSellerOptionBalance = await waPodPut.balanceOf(sellerAddress)
+        const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const initialContractStrikeBalance = await waPodPut.strikeBalance()
 
-      //   expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
-      //   expect(initialSellerStrikeBalance).to.equal(0)
-      //   expect(initialContractStrikeBalance).to.equal(scenario.strikePrice.add(earnedInterest))
+        expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
+        expect(initialSellerStrikeBalance).to.equal(0)
+        expect(initialContractStrikeBalance).to.equal(scenario.strikePrice.add(earnedInterest))
 
-      //   const optionExpiration = await aPodPut.expirationBlockNumber()
-      //   await forceExpiration(optionExpiration)
+        await forceExpiration(waPodPut)
 
-      //   await aPodPut.connect(seller).withdraw()
+        await waPodPut.connect(seller).withdraw()
 
-      //   const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-      //   const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-      //   const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        const finalSellerOptionBalance = await waPodPut.balanceOf(sellerAddress)
+        const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const finalContractStrikeBalance = await waPodPut.strikeBalance()
 
-      //   expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
-      //   expect(finalSellerStrikegBalance).to.equal(scenario.strikePrice.add(earnedInterest))
-      //   expect(finalContractStrikeBalance).to.equal(0)
-      //   // Cant withdraw two times in a row
-      //   // await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
-      // })
+        expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
+        expect(finalSellerStrikegBalance).to.equal(scenario.strikePrice.add(earnedInterest))
+        expect(finalContractStrikeBalance).to.equal(0)
+        // Cant withdraw two times in a row
+        // await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+      })
 
-      // it('should withdraw Strike Asset balance plus interest earned proportional (Ma-Mb-Wa-Wb)', async () => {
-      //   // seller 1
-      //   await MintPhase(scenario.amountToMint)
+      it('should withdraw Strike Asset balance plus interest earned proportional (Ma-Mb-Wa-Wb)', async () => {
+        // seller 1
+        await MintPhase(scenario.amountToMint)
 
-      //   await mockStrikeAsset.earnInterest(aPodPut.address)
+        await mockStrikeAsset.earnInterest(waPodPut.address)
 
-      //   // seller 1
-      //   const twoTimesAmountToMint = scenario.amountToMint.mul(ethers.BigNumber.from('2'))
-      //   await MintPhase(twoTimesAmountToMint, buyer, buyerAddress)
-      //   const optionDecimals = await aPodPut.decimals()
+        // seller 1
+        const twoTimesAmountToMint = scenario.amountToMint.mul(ethers.BigNumber.from('2'))
+        const twoTimesAmountOfCollateral = scenario.strikePrice.mul(ethers.BigNumber.from('2'))
+        await MintPhase(twoTimesAmountToMint, buyer, buyerAddress)
+        const optionNumberOfDecimals = await waPodPut.decimals()
+        const optionDecimals = ethers.BigNumber.from('10').pow(optionNumberOfDecimals)
+        // Earned 10% interest
+        await mockStrikeAsset.earnInterest(waPodPut.address)
+        // Set Expiration
+        const initialSellerOptionBalance = await waPodPut.balanceOf(sellerAddress)
+        const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const initialContractStrikeBalance = await waPodPut.strikeBalance()
 
-      //   // Earned 10% interest
-      //   await mockStrikeAsset.earnInterest(aPodPut.address)
-      //   // Set Expiration
-      //   const initialSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-      //   const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
-      //   const initialContractStrikeBalance = await aPodPut.strikeBalance()
+        expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
+        expect(initialSellerStrikeBalance).to.equal(0)
+        expect(initialContractStrikeBalance).to.gt(twoTimesAmountOfCollateral)
 
-      //   expect(initialSellerOptionBalance).to.equal(scenario.amountToMint)
-      //   expect(initialSellerStrikeBalance).to.equal(0)
-      //   expect(initialContractStrikeBalance).to.gt(scenario.strikePrice.add(twoTimesAmountToMint))
+        await forceExpiration(waPodPut)
 
-      //   const optionExpiration = await aPodPut.expirationBlockNumber()
-      //   await forceExpiration(optionExpiration)
+        await waPodPut.connect(seller).withdraw()
 
-      //   await aPodPut.connect(seller).withdraw()
+        const finalSellerOptionBalance = await waPodPut.balanceOf(sellerAddress)
+        const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
 
-      //   const finalSellerOptionBalance = await aPodPut.balanceOf(sellerAddress)
-      //   const finalSellerStrikegBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
+        expect(finalSellerStrikegBalance).to.gt(scenario.strikePrice)
+        expect(finalSellerStrikegBalance).to.lt(scenario.strikePrice.mul(twoTimesAmountToMint).div(optionDecimals))
+        // Cant withdraw two times in a row
+        await expect(waPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
 
-      //   expect(finalSellerOptionBalance).to.equal(scenario.amountToMint)
-      //   expect(finalSellerStrikegBalance).to.gt(scenario.strikePrice)
-      //   expect(finalSellerStrikegBalance).to.lt(scenario.strikePrice.mul(twoTimesAmountToMint).div(10 ** optionDecimals))
-      //   // Cant withdraw two times in a row
-      //   await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+        await waPodPut.connect(buyer).withdraw()
 
-      //   await aPodPut.connect(buyer).withdraw()
+        const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
+        const finalContractStrikeBalance = await waPodPut.strikeBalance()
 
-      //   const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
-      //   const finalContractStrikeBalance = await aPodPut.strikeBalance()
+        expect(finalBuyerStrikeBalance).to.gt(scenario.strikePrice.mul(twoTimesAmountToMint).div(optionDecimals))
+        expect(finalContractStrikeBalance).to.equal(0)
+        await expect(waPodPut.connect(buyer).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+      })
 
-      //   expect(finalBuyerStrikeBalance).to.gt(scenario.strikePrice.mul(twoTimesAmountToMint).div(10 ** optionDecimals))
-      //   expect(finalContractStrikeBalance).to.equal(0)
-      //   await expect(aPodPut.connect(buyer).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
-      // })
+      it('should withdraw mixed amount of Strike Asset and Underlying Asset (Ma-Mb-Ec-Wa-Wb)', async () => {
+        // Ma => Mint with user A (seller)
+        await MintPhase(scenario.amountToMint)
+        await mockStrikeAsset.earnInterest(waPodPut.address)
+        const halfAmountMint = ethers.BigNumber.from(scenario.amountToMint).div(2)
+        await MintPhase(scenario.amountToMint, buyer, buyerAddress)
+        await mockStrikeAsset.earnInterest(waPodPut.address)
+        await ExercisePhase(halfAmountMint, seller, another, anotherAddress)
 
-      // it('should withdraw mixed amount of Strike Asset and Underlying Asset (Ma-Mb-Ec-Wa-Wb)', async () => {
-      //   // Ma => Mint with user A (seller)
-      //   await MintPhase(scenario.amountToMint)
-      //   await mockStrikeAsset.earnInterest(aPodPut.address)
-      //   const halfAmountMint = ethers.BigNumber.from(scenario.amountToMint).div(2)
-      //   await MintPhase(scenario.amountToMint, buyer, buyerAddress)
-      //   await mockStrikeAsset.earnInterest(aPodPut.address)
-      //   await ExercisePhase(halfAmountMint, seller, another, anotherAddress)
+        const optionNumberOfDecimals = await waPodPut.decimals()
+        const optionDecimals = ethers.BigNumber.from('10').pow(optionNumberOfDecimals)
 
-      //   const optionExpiration = await aPodPut.expirationBlockNumber()
-      //   await forceExpiration(optionExpiration)
+        // Checking balance before withdraw
+        const initialSellerUnderlyingBalance = await ethers.provider.getBalance(sellerAddress)
+        const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
 
-      //   const underlyingDecimals = await mockUnderlyingAsset.decimals()
-      //   // Checking balance before withdraw
-      //   const initialSellerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(sellerAddress)
-      //   const initialSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        await forceExpiration(waPodPut)
+        const txWithdraw = await waPodPut.connect(seller).withdraw()
+        const txCost = await getTxCost(txWithdraw)
+        await expect(waPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
 
-      //   await expect(aPodPut.connect(seller).withdraw())
-      //   await expect(aPodPut.connect(seller).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+        const finalSellerUnderlyingBalance = await ethers.provider.getBalance(sellerAddress)
+        const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
 
-      //   const finalSellerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(sellerAddress)
-      //   const finalSellerStrikeBalance = await mockStrikeAsset.balanceOf(sellerAddress)
+        const earnedSellerStrike = finalSellerStrikeBalance.sub(initialSellerStrikeBalance)
+        const earnedSellerUnderlying = finalSellerUnderlyingBalance.sub(initialSellerUnderlyingBalance).add(txCost)
+        const earnedSellerInUnitsOfStrike = earnedSellerUnderlying.mul(scenario.strikePrice).div(optionDecimals)
+        const totalEarned = earnedSellerStrike.add(earnedSellerInUnitsOfStrike)
 
-      //   const earnedSellerStrike = finalSellerStrikeBalance.sub(initialSellerStrikeBalance)
-      //   const earnedSellerUnderlying = finalSellerUnderlyingBalance.sub(initialSellerUnderlyingBalance)
-      //   const earnedSellerInUnitsOfStrike = earnedSellerUnderlying.mul(scenario.strikePrice).div(10 ** underlyingDecimals)
-      //   const totalEarned = earnedSellerStrike.add(earnedSellerInUnitsOfStrike)
+        const initialSellerStriked = await waPodPut.strikeToTransfer(scenario.amountToMint)
 
-      //   const initialSellerStriked = await aPodPut.strikeToTransfer(scenario.amountToMint)
+        expect(totalEarned).to.gte(initialSellerStriked)
 
-      //   expect(totalEarned).to.gte(initialSellerStriked)
+        const initialBuyerUnderlyingBalance = await ethers.provider.getBalance(buyerAddress)
+        const initialBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
 
-      //   const initialBuyerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(buyerAddress)
-      //   const initialBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
+        const txWithdrawBuyer = await waPodPut.connect(buyer).withdraw()
+        const txCostBuyer = await getTxCost(txWithdrawBuyer)
+        await expect(waPodPut.connect(buyer).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
 
-      //   await expect(aPodPut.connect(buyer).withdraw())
-      //   await expect(aPodPut.connect(buyer).withdraw()).to.be.revertedWith('You do not have balance to withdraw')
+        const finalBuyerUnderlyingBalance = await ethers.provider.getBalance(buyerAddress)
+        const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
 
-      //   const finalBuyerUnderlyingBalance = await mockUnderlyingAsset.balanceOf(buyerAddress)
-      //   const finalBuyerStrikeBalance = await mockStrikeAsset.balanceOf(buyerAddress)
+        const earnedBuyerStrike = finalBuyerStrikeBalance.sub(initialBuyerStrikeBalance)
+        const earnedBuyerUnderlying = finalBuyerUnderlyingBalance.sub(initialBuyerUnderlyingBalance).add(txCostBuyer)
+        const earnedBuyerInUnitsOfStrike = earnedBuyerUnderlying.mul(scenario.strikePrice).div(optionDecimals)
+        const totalEarnedBuyer = earnedBuyerStrike.add(earnedBuyerInUnitsOfStrike)
 
-      //   const earnedBuyerStrike = finalBuyerStrikeBalance.sub(initialBuyerStrikeBalance)
-      //   const earnedBuyerUnderlying = finalBuyerUnderlyingBalance.sub(initialBuyerUnderlyingBalance)
-      //   const earnedBuyerInUnitsOfStrike = earnedBuyerUnderlying.mul(scenario.strikePrice).div(10 ** underlyingDecimals)
-      //   const totalEarnedBuyer = earnedBuyerStrike.add(earnedBuyerInUnitsOfStrike)
+        const initialBuyerStriked = await waPodPut.strikeToTransfer(scenario.amountToMint)
 
-      //   const initialBuyerStriked = await aPodPut.strikeToTransfer(scenario.amountToMint)
-
-      //   expect(totalEarnedBuyer).to.gte(initialBuyerStriked)
-      // })
+        expect(totalEarnedBuyer).to.gte(initialBuyerStriked)
+      })
     })
   })
 })
