@@ -185,6 +185,6 @@ contract aPodPut is PodPut {
                 "Couldn't transfer back strike tokens to caller"
             );
         }
-        emit Withdraw(msg.sender, amount);
+        emit Withdraw(msg.sender, mintedOptions[msg.sender]);
     }
 }
