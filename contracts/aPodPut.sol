@@ -119,7 +119,7 @@ contract aPodPut is PodPut {
     //  *
     //  * Options can only be burned while the series is NOT expired.
     //  */
-    function unwind(uint256 amount) external override beforeExpiration {
+    function unwind(uint256 amount) external virtual override beforeExpiration {
         uint256 weightedBalance = weightedBalances[msg.sender];
         require(weightedBalance > 0, "You do not have minted options");
 
@@ -162,7 +162,7 @@ contract aPodPut is PodPut {
      * exercised, the remaining balance is converted into the underlying asset
      * and given to the caller.
      */
-    function withdraw() external override afterExpiration {
+    function withdraw() external virtual override afterExpiration {
         uint256 weightedBalance = weightedBalances[msg.sender];
         require(weightedBalance > 0, "You do not have balance to withdraw");
 
@@ -185,6 +185,6 @@ contract aPodPut is PodPut {
                 "Couldn't transfer back strike tokens to caller"
             );
         }
-        emit Withdraw(msg.sender, amount);
+        emit Withdraw(msg.sender, mintedOptions[msg.sender]);
     }
 }
