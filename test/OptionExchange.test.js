@@ -1,7 +1,7 @@
 const { expect } = require('chai')
 const getUniswapMock = require('./util/getUniswapMock')
 
-describe.only('OptionExchange', () => {
+describe('OptionExchange', () => {
   let ContractFactory, MockERC20, ExchangeContract, WETH, UniswapV1Provider
   let exchange, exchangeProvider, uniswapFactory, createExchange, clearMock
   let underlyingAsset, strikeAsset, weth
