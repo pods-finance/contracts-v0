@@ -79,9 +79,7 @@ contract aPodPut is PodPut {
     function mint(uint256 amount, address owner) external override beforeExpiration {
         require(amount > 0, "Null amount");
 
-        uint256 amountToTransfer = amount.mul(strikePrice).div(
-            10**underlyingAssetDecimals.add(strikePriceDecimals).sub(strikeAssetDecimals)
-        );
+        uint256 amountToTransfer = _strikeToTransfer(amount)
         require(amountToTransfer > 0, "Amount too low");
 
         if (totalLockedWeighted > 0) {
