@@ -51,12 +51,13 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^3.0.1",
+    "@openzeppelin/contracts-ethereum-package": "^3.0.0",
     "bignumber.js": "^9.0.0",
     "bn.js": "^5.1.2"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run lint && npm run prettier:fix",
+      "pre-commit": "npm run lint && npm run prettier:fix && npm run compile",
       "pre-push": "./scripts/pre-push-check.sh"
     }
   },
