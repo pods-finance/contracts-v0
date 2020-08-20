@@ -109,14 +109,14 @@ contract aPodPut is PodPut {
         emit Mint(owner, amount);
     }
 
-    // /**
-    //  * Unlocks some amount of the strike token by burning option tokens.
-    //  *
-    //  * This mechanism ensures that users can only redeem tokens they've
-    //  * previously lock into this contract.
-    //  *
-    //  * Options can only be burned while the series is NOT expired.
-    //  */
+    /**
+     * Unlocks some amount of the strike token by burning option tokens.
+     *
+     * This mechanism ensures that users can only redeem tokens they've
+     * previously lock into this contract.
+     *
+     * Options can only be burned while the series is NOT expired.
+     */
     function unwind(uint256 amount) external virtual override beforeExpiration {
         uint256 weightedBalance = weightedBalances[msg.sender];
         require(weightedBalance > 0, "You do not have minted options");
