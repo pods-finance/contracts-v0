@@ -3,8 +3,11 @@ const UniswapFactoryABI = require('../abi/uniswap_factory.json')
 const UniswapExchangeABI = require('../abi/uniswap_exchange.json')
 const erc20ABI = require('../abi/erc20.json')
 const { getBlockDate } = require('../utils/utils')
+require('./UniswapV1/createExchangeUniswapV1')
+require('./UniswapV1/addLiquidityUniswapV1')
+require('./mintOptions')
 
-task('deploySerie', 'Initial Option series setup: create an option, create a uniswap exchange and add initial liquidity')
+task('deploySerie', 'Initial Option series setup: create option, create an exchange and add liquidity')
   .addParam('underlying', 'symbol of underlying asset. (E.G: wbtc)')
   .addParam('strike', 'symbol of strike asset. (E.G: usdc)')
   .addParam('price', 'Units of strikeAsset in order to trade for 1 unit of underlying. (E.G: 7000)')
@@ -36,11 +39,10 @@ task('deploySerie', 'Initial Option series setup: create an option, create a uni
       underlyingAsset: underlyingAssetAddress, // 0x0094e8cf72acf138578e399768879cedd1ddd33c
       strikeAsset: strikeAssetAddress, // 0xe22da380ee6B445bb8273C81944ADEB6E8450422
       strikePrice: strikePrice, // 7000e6 if strike is USDC,
-      expirationDate: expiration, // 19443856 = 10 july
-      uniswapFactory
+      expirationDate: expiration // 19443856 = 10 july
     }
 
-    console.log('Optiion Parameters')
+    console.log('Option Parameters')
     console.log(optionParams)
 
     // TODO: check price api, instead of hardcoded
@@ -59,15 +61,13 @@ task('deploySerie', 'Initial Option series setup: create an option, create a uni
       optionParams.underlyingAsset,
       optionParams.strikeAsset,
       optionParams.strikePrice,
-      optionParams.expirationDate,
-      optionParams.uniswapFactory
+      optionParams.expirationDate
     ]
 
     // 1) Create Option
     const FactoryContract = await ethers.getContractAt('OptionFactory', optionFactory)
     const UnderlyingContract = new ethers.Contract(optionParams.underlyingAsset, erc20ABI, owner)
     const underlyingAssetSymbol = await UnderlyingContract.symbol()
-    // const underlyingAssetSymbol = 'WETH'
 
     console.log('Underlying Asset Symbol: ' + underlyingAssetSymbol)
     if (underlyingAssetSymbol === 'WETH') {
@@ -90,38 +90,20 @@ task('deploySerie', 'Initial Option series setup: create an option, create a uni
     } else {
       console.log('Something went wrong: No events found')
     }
-    // 2) Create new Uniswap Exchange with OptionAddress
-    console.log('Create New Uniswap Exchange')
-    const UniswapFactoryContract = new web3.eth.Contract(UniswapFactoryABI, uniswapFactory)
-    const txCreateExchange = await UniswapFactoryContract.methods.createExchange(optionAddress).send({ from: deployerAddress })
-    setTimeout(() => 0, 5000)
-    const optionExchangeAddress = await UniswapFactoryContract.methods.getExchange(optionAddress).call()
-    console.log('optionExchangeAddress: ', optionExchangeAddress)
 
-    // 3) Mint first Options
     const OptionContract = await ethers.getContractAt('PodPut', optionAddress)
-    const ExchangeContract = new web3.eth.Contract(UniswapExchangeABI, optionExchangeAddress)
-
-    // 3a) Approve StrikeAsset between me and option Contract
-
-    console.log('Strike Asset', await strikeAssetContract.symbol())
-    await strikeAssetContract.approve(optionAddress, (ethers.constants.MaxUint256).toString())
-
-    // 3b) Call option Mint
     const optionDecimals = await OptionContract.decimals()
     console.log('optionDecimals: ', optionDecimals)
     const amountOfOptionsToAddLiquidity = new BigNumber(amountOfOptionsToMint).multipliedBy(10 ** optionDecimals).toString()
-    const txIdMint = await OptionContract.mint(amountOfOptionsToAddLiquidity, deployerAddress)
-    await txIdMint.wait()
-    console.log('Option Balance after mint', (await OptionContract.balanceOf(deployerAddress)).toString())
+
+    // 2) Create new Uniswap Exchange with OptionAddress
+    await run('createExchangeUniswapV1', { token: optionAddress, factoryAddress: uniswapFactory, deployerAddress })
+
+    // 3) Mint options
+    await run('mintOptions', { optionAddress, strikeAssetAddress, amount: amountOfOptionsToAddLiquidity, owner: deployerAddress })
 
     // 4) Add Liquidity to Uniswap Exchange
-    // 4a) Approve Option contract to exchange spender
-    const txIdApprove = await OptionContract.approve(optionExchangeAddress, (ethers.constants.MaxUint256).toString())
-    await txIdApprove.wait()
-    // // 4b) Add liquidity per se
+    await run('addLiquidityUniswapV1', { token: optionAddress, amountOfTokens: amountOfOptionsToAddLiquidity, amountOfEth: amountOfEthToAddLiquidity, deployerAddress, factory: uniswapFactory })
 
-    await ExchangeContract.methods.addLiquidity(0, amountOfOptionsToAddLiquidity, (ethers.constants.MaxUint256).toString()).send({ from: deployerAddress, value: amountOfEthToAddLiquidity })
-    console.log('Liquidity Added')
     console.log('Option Balance after liquidity added', (await OptionContract.balanceOf(deployerAddress)).toString())
   })
