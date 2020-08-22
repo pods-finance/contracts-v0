@@ -71,7 +71,7 @@ scenarios.forEach(scenario => {
       await factoryContract.deployed()
 
       // call transaction
-      txIdNewOption = await factoryContract.createBearingOption(
+      txIdNewOption = await factoryContract.createOption(
         scenario.name,
         scenario.name,
         OPTION_TYPE_PUT,
