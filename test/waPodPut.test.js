@@ -71,7 +71,7 @@ scenarios.forEach(scenario => {
       await mockStrikeAsset.deployed()
 
       // call transaction
-      txIdNewOption = await factoryContract.createOption(
+      txIdNewOption = await factoryContract.createEthOption(
         scenario.name,
         scenario.name,
         OPTION_TYPE_PUT,
