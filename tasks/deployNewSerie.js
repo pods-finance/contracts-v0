@@ -12,13 +12,33 @@ task('deploySerie', 'Initial Option series setup: create option, create an excha
   .addParam('strike', 'symbol of strike asset. (E.G: usdc)')
   .addParam('price', 'Units of strikeAsset in order to trade for 1 unit of underlying. (E.G: 7000)')
   .addParam('expiration', 'Block number of the expiration')
-  .setAction(async ({ underlying, strike, price, expiration }, bre) => {
+  .addFlag('aave', 'if its Interest Bearing contract or not')
+  .setAction(async ({ underlying, strike, price, expiration, aave }, bre) => {
+    const optionFactoryNameAddress = aave ? 'aOptionFactory' : 'optionFactory'
+    const optionFactoryContractName = aave ? 'aOptionFactory' : 'OptionFactory'
+    let optionContractName
     const strikeAsset = strike.toUpperCase()
     const underlyingAsset = underlying.toUpperCase()
 
+    if (aave) {
+      if (underlyingAsset === 'WETH') {
+        optionContractName = 'waPodPut'
+      } else {
+        optionContractName = 'aPodPut'
+      }
+    } else {
+      if (underlyingAsset === 'WETH') {
+        optionContractName = 'wPodPut'
+      } else {
+        optionContractName = 'PodPut'
+      }
+    }
+
     const strikeAssetAddress = require(`../deployments/${bre.network.name}.json`)[strikeAsset]
     const underlyingAssetAddress = require(`../deployments/${bre.network.name}.json`)[underlyingAsset]
-    const { optionFactory, uniswapFactory } = require(`../deployments/${bre.network.name}.json`)
+    const optionFactoryAddress = require(`../deployments/${bre.network.name}.json`)[optionFactoryNameAddress]
+    const { uniswapFactory } = require(`../deployments/${bre.network.name}.json`)
+
     const [owner] = await ethers.getSigners()
     const deployerAddress = await owner.getAddress()
     let optionAddress
@@ -27,11 +47,11 @@ task('deploySerie', 'Initial Option series setup: create option, create an excha
     // TODO: function to build option name and symbol based on underyingAsset,strikeAsset,strikePrice and Date
     const currentBlockNumber = await ethers.provider.getBlockNumber()
     const expirationInDate = getBlockDate(currentBlockNumber, expiration, bre.network.config.network_id)
+
     const strikeAssetContract = new ethers.Contract(strikeAssetAddress, erc20ABI, owner)
-
     const strikeDecimals = await strikeAssetContract.decimals()
-
     const strikePrice = new BigNumber(price).multipliedBy(10 ** strikeDecimals).toString()
+
     const optionParams = {
       name: `Pods Put ${underlyingAsset}:${strikeAsset} ${price} ${expirationInDate.toISOString().slice(0, 10)}`, // Pods Put WBTC:USDC 7000 2020-07-10
       symbol: `pod${underlyingAsset}:${strikeAsset}`, // Pods Put WBTC:USDC 7000 2020-07-10
@@ -45,15 +65,6 @@ task('deploySerie', 'Initial Option series setup: create option, create an excha
     console.log('Option Parameters')
     console.log(optionParams)
 
-    // TODO: check price api, instead of hardcoded
-    const currentEtherPriceInUSD = 225 // Checked on uniswap v1 usdc/eth pool
-    const optionPremiumInUSD = 6
-    const amountOfOptionsToMint = 10
-
-    const optionPremiumInETH = optionPremiumInUSD / currentEtherPriceInUSD // currentEtherPriceInUSD / optionPremium
-    const amountOfEthToAddLiquidity = new BigNumber(1e18).multipliedBy(optionPremiumInETH).multipliedBy(amountOfOptionsToMint).toString() // optionPremiumInETH * Amount
-    // Amount * (10 ** optionDecimals)
-
     const funcParameters = [
       optionParams.name,
       optionParams.symbol,
@@ -65,12 +76,10 @@ task('deploySerie', 'Initial Option series setup: create option, create an excha
     ]
 
     // 1) Create Option
-    const FactoryContract = await ethers.getContractAt('OptionFactory', optionFactory)
-    const UnderlyingContract = new ethers.Contract(optionParams.underlyingAsset, erc20ABI, owner)
-    const underlyingAssetSymbol = await UnderlyingContract.symbol()
+    const FactoryContract = await ethers.getContractAt(optionFactoryContractName, optionFactoryAddress)
 
-    console.log('Underlying Asset Symbol: ' + underlyingAssetSymbol)
-    if (underlyingAssetSymbol === 'WETH') {
+    console.log('Underlying Asset Symbol: ' + underlyingAsset)
+    if (underlyingAsset === 'WETH') {
       funcParameters.splice(3, 1) // removing underlying asset
       txIdNewOption = await FactoryContract.createEthOption(...funcParameters)
     } else {
@@ -91,9 +100,18 @@ task('deploySerie', 'Initial Option series setup: create option, create an excha
       console.log('Something went wrong: No events found')
     }
 
-    const OptionContract = await ethers.getContractAt('PodPut', optionAddress)
+    const OptionContract = await ethers.getContractAt(optionContractName, optionAddress)
     const optionDecimals = await OptionContract.decimals()
     console.log('optionDecimals: ', optionDecimals)
+
+    // TODO: check price api, instead of hardcoded
+    const currentEtherPriceInUSD = 225 // Checked on uniswap v1 usdc/eth pool
+    const optionPremiumInUSD = 6
+    const amountOfOptionsToMint = 10
+
+    const optionPremiumInETH = optionPremiumInUSD / currentEtherPriceInUSD // currentEtherPriceInUSD / optionPremium
+    const amountOfEthToAddLiquidity = new BigNumber(1e18).multipliedBy(optionPremiumInETH).multipliedBy(amountOfOptionsToMint).toString() // optionPremiumInETH * Amount
+    // Amount * (10 ** optionDecimals)
     const amountOfOptionsToAddLiquidity = new BigNumber(amountOfOptionsToMint).multipliedBy(10 ** optionDecimals).toString()
 
     // 2) Create new Uniswap Exchange with OptionAddress
