@@ -1,6 +1,7 @@
 require('dotenv').config()
 require('./tasks/balance')
 require('./tasks/deployNewSerie')
+require('./tasks/deployFactory')
 require('./tasks/UniswapV1/getExchangeUniswapV1')
 require('./tasks/deployOptionExchange')
 
