@@ -4,7 +4,7 @@ pragma solidity ^0.6.8;
 import "./waPodPut.sol";
 import "./aPodPut.sol";
 
-contract BearingOptionFactory {
+contract aOptionFactory {
     aPodPut[] public options;
     address public WETH_ADDRESS;
 
