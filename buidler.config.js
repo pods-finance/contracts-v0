@@ -4,6 +4,7 @@ require('./tasks/deployNewSerie')
 require('./tasks/deployFactory')
 require('./tasks/UniswapV1/getExchangeUniswapV1')
 require('./tasks/deployOptionExchange')
+require('./tasks/Balancer/createExchangeBalancer')
 
 usePlugin('@nomiclabs/buidler-waffle')
 usePlugin('@nomiclabs/buidler-web3')
