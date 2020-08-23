@@ -3,7 +3,6 @@ internalTask('deployOptionExchange', 'Deploy new option exchange using provider'
   .addParam('provider', 'String representing provider name (E.g: UniswapV1Provider)')
   .addParam('factory', 'String of the factory name to pass to initialize')
   .setAction(async ({ provider, factory }, bre) => {
-    console.log('i')
     const factoryAddress = require(`../deployments/${bre.network.name}.json`)[factory]
     const ExchangeProvider = await ethers.getContractFactory(provider)
     // 1) Deploy provider
