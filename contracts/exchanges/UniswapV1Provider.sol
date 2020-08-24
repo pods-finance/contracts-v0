@@ -24,7 +24,7 @@ contract UniswapV1Provider is ExchangeProvider {
         uint256 minOutputAmount,
         uint256 deadline,
         address recipient
-    ) external override returns (uint256) {
+    ) external override withinDeadline(deadline) returns (uint256) {
         IUniswapExchange exchange = _getExchange(inputToken);
 
         // Take input amount from caller
@@ -59,7 +59,7 @@ contract UniswapV1Provider is ExchangeProvider {
         uint256 outputAmount,
         uint256 deadline,
         address recipient
-    ) external override returns (uint256) {
+    ) external override withinDeadline(deadline) returns (uint256) {
         IUniswapExchange exchange = _getExchange(inputToken);
 
         uint256 balanceBefore = ERC20(inputToken).balanceOf(address(this));
