@@ -1,5 +1,5 @@
 
-const BalancerFactoryABI = require('../../abi/balancerFactory.json')
+const BFactoryABI = require('../../abi/BFactory.json')
 
 internalTask('createExchangeBalancer', 'Deploy a new Balancer Pool')
   .setAction(async ({}, bre) => {
@@ -9,7 +9,7 @@ internalTask('createExchangeBalancer', 'Deploy a new Balancer Pool')
     let poolAddress
 
     const { balancerFactory } = require(`../../deployments/${bre.network.name}.json`)
-    const BalancerFactoryContract = await ethers.getContractAt(BalancerFactoryABI, balancerFactory)
+    const BalancerFactoryContract = await ethers.getContractAt(BFactoryABI, balancerFactory)
     const creationTx = await BalancerFactoryContract.newBPool()
 
     const filterFrom = await BalancerFactoryContract.filters.LOG_NEW_POOL(deployerAddress)
