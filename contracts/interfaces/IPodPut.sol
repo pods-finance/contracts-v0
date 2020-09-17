@@ -4,7 +4,7 @@ pragma solidity ^0.6.8;
 interface IPodPut {
     function mint(uint256, address) external;
 
-    function exchange(uint256) external;
+    function exercise(uint256) external;
 
     function withdraw() external;
 
