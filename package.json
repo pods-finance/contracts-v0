@@ -50,7 +50,7 @@
     "web3": "^1.2.9"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^3.0.1",
+    "@openzeppelin/contracts": "^4.4.2",
     "@openzeppelin/contracts-ethereum-package": "^3.0.0",
     "bignumber.js": "^9.0.0",
     "bn.js": "^5.1.2"
